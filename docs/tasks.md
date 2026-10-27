@@ -5,15 +5,15 @@
 ## 現在の状況
 
 - 最終更新: 2026-10-27
-- 進行中: T1（依存パッケージのインストールまで完了。設定ファイル類はこれから）
-- 次にやること: T1 の残り → T2
+- 進行中: T2
+- 次にやること: T2 → T3
 - メモ: GitHub リポジトリ `atzzCokeK/kintai-plus-mcp` は Private。Public 化は v0.1.0 リリース時
 
 ## T1. リポジトリ基盤
-- [ ] package.json（`bin: kintai-plus-mcp`、Node 22+、ESM）、tsconfig、tsdown、Vitest、Biome
-- [ ] LICENSE（MIT）、.gitignore、README の骨組み（日本語＋英語の短い版、非公式の明記）
-- [ ] CI（GitHub Actions: lint / typecheck / test、Node 22・24）
-- [ ] Changesets の初期化
+- [x] package.json（`bin: kintai-plus-mcp`、Node 22+、ESM）、tsconfig、tsdown、Vitest、Biome
+- [x] LICENSE（MIT）、.gitignore、README の骨組み（日本語＋英語の短い版、非公式の明記）
+- [x] CI（GitHub Actions: lint / typecheck / test、Node 22・24）
+- [x] Changesets の初期化
 
 ## T2. API クライアント
 - [ ] 接続先（`atnd.ak4.jp` / `atnd-awj.ak4.jp`）と企業 ID からの URL 組み立て
