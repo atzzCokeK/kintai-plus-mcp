@@ -1,10 +1,11 @@
 import type { Alert } from '../api/alerts.ts';
-import type { ManhourDay } from '../api/manhours.ts';
+import type { ManhourDay, ManhourItem } from '../api/manhours.ts';
 import type { DateRange } from '../api/paging.ts';
 import type { Project, Task } from '../api/projects.ts';
 import type { Role } from '../api/staff.ts';
 import type { Stamp, StampType } from '../api/stamps.ts';
 import type { WorkingRecord } from '../api/working-records.ts';
+import type { LocalDate } from '../time/datetime.ts';
 
 /**
  * 勤怠の操作を表すバックエンドのインターフェース。
@@ -55,6 +56,15 @@ export interface KintaiBackend {
   getManhours(range: DateRange, options?: { staffId?: number }): Promise<ManhourDay[]>;
   /** 打刻する。記録はサーバー到着時刻で、API からは修正できない */
   punch(input: PunchInput): Promise<{ stampedAt?: Date }>;
+  /** 自分の工数を作成・更新する */
+  saveManhours(input: SaveManhoursInput): Promise<void>;
+  /** 自分の工数を削除する。taskId を省略するとそのプロジェクトの全タスク */
+  deleteManhours(input: { date: LocalDate; projectId: number; taskId?: number }): Promise<void>;
+}
+
+export interface SaveManhoursInput {
+  date: LocalDate;
+  projects: Array<{ projectId: number; items: ManhourItem[] }>;
 }
 
 export interface PunchInput {

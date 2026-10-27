@@ -59,7 +59,7 @@
 
 ## T8. 書き込み系ツール
 - [x] `punch`（種別必須、その日の打刻履歴との矛盾チェック、`force`、テレワーク）
-- [ ] `save_manhours` / `delete_manhours`
+- [x] `save_manhours` / `delete_manhours`
 - [ ] `CONFIRM_WRITES=true` 時の Elicitation による確認
 
 ## T9. 管理者向けツール

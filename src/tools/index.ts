@@ -1,4 +1,5 @@
 import { getAlertsTool } from './alerts.ts';
+import { deleteManhoursTool, saveManhoursTool } from './manhours-write.ts';
 import { getMyProfileTool } from './profile.ts';
 import { getManhoursTool, getMyProjectsTool, listProjectsTool, listTasksTool } from './projects.ts';
 import { punchTool } from './punch.ts';
@@ -18,4 +19,6 @@ export const ALL_TOOLS: readonly ToolDefinition[] = [
   listTasksTool,
   getMyProjectsTool,
   getManhoursTool,
+  saveManhoursTool,
+  deleteManhoursTool,
 ];

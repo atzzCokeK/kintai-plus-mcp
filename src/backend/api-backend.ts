@@ -22,6 +22,7 @@ import {
   formatSlashDateTime,
   formatStampQuery,
   JST_OFFSET,
+  type LocalDate,
   startOfDay,
 } from '../time/datetime.ts';
 import {
@@ -30,6 +31,7 @@ import {
   type KintaiBackend,
   type Profile,
   type PunchInput,
+  type SaveManhoursInput,
   type StampList,
 } from './types.ts';
 
@@ -205,6 +207,41 @@ export class ApiBackend implements KintaiBackend {
     });
     const [stamp] = parseStamps(res);
     return stamp ? { stampedAt: stamp.stampedAt } : {};
+  }
+
+  async saveManhours(input: SaveManhoursInput): Promise<void> {
+    const { staffId } = await this.getMyProfile();
+    const client = await this.#getClient();
+    await client.post([COMPANY_ID, 'manhours'], {
+      manhours: [
+        {
+          staff_id: staffId,
+          dates: [
+            {
+              date: formatSlashDate(input.date),
+              projects: input.projects.map((p) => ({
+                project_id: p.projectId,
+                daily_hour_items: p.items.map((i) => ({ task_id: i.taskId, minute: i.minutes })),
+              })),
+            },
+          ],
+        },
+      ],
+    });
+  }
+
+  async deleteManhours(input: {
+    date: LocalDate;
+    projectId: number;
+    taskId?: number;
+  }): Promise<void> {
+    const { staffId } = await this.getMyProfile();
+    const client = await this.#getClient();
+    await client.delete([COMPANY_ID, 'manhours', staffId], {
+      date: formatSlashDate(input.date),
+      project_id: input.projectId,
+      task_id: input.taskId,
+    });
   }
 
   async #fetchProfile(): Promise<Profile> {
