@@ -3,7 +3,7 @@ import type { ManhourDay } from '../api/manhours.ts';
 import type { DateRange } from '../api/paging.ts';
 import type { Project, Task } from '../api/projects.ts';
 import type { Role } from '../api/staff.ts';
-import type { Stamp } from '../api/stamps.ts';
+import type { Stamp, StampType } from '../api/stamps.ts';
 import type { WorkingRecord } from '../api/working-records.ts';
 
 /**
@@ -53,6 +53,16 @@ export interface KintaiBackend {
   getMyProjectIds(): Promise<number[]>;
   /** 工数（両端の日を含む）。staffId を省略すると自分 */
   getManhours(range: DateRange, options?: { staffId?: number }): Promise<ManhourDay[]>;
+  /** 打刻する。記録はサーバー到着時刻で、API からは修正できない */
+  punch(input: PunchInput): Promise<{ stampedAt?: Date }>;
+}
+
+export interface PunchInput {
+  type: StampType;
+  /** テレワーク（出勤時のみ有効） */
+  telework?: boolean;
+  /** 打刻する時刻（参考値として送る。記録はサーバー到着時刻） */
+  at: Date;
 }
 
 export interface StampList {

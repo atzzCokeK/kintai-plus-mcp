@@ -1,6 +1,7 @@
 import { getAlertsTool } from './alerts.ts';
 import { getMyProfileTool } from './profile.ts';
 import { getManhoursTool, getMyProjectsTool, listProjectsTool, listTasksTool } from './projects.ts';
+import { punchTool } from './punch.ts';
 import type { ToolDefinition } from './registry.ts';
 import { getStampsTool, getTodayStatusTool } from './stamps.ts';
 import { getWorkingRecordsTool } from './working-records.ts';
@@ -9,6 +10,7 @@ import { getWorkingRecordsTool } from './working-records.ts';
 export const ALL_TOOLS: readonly ToolDefinition[] = [
   getMyProfileTool,
   getTodayStatusTool,
+  punchTool,
   getStampsTool,
   getWorkingRecordsTool,
   getAlertsTool,

@@ -58,7 +58,7 @@
 - [x] `list_projects` / `list_tasks` / `get_my_projects` / `get_manhours`
 
 ## T8. 書き込み系ツール
-- [ ] `punch`（種別必須、その日の打刻履歴との矛盾チェック、`force`、テレワーク）
+- [x] `punch`（種別必須、その日の打刻履歴との矛盾チェック、`force`、テレワーク）
 - [ ] `save_manhours` / `delete_manhours`
 - [ ] `CONFIRM_WRITES=true` 時の Elicitation による確認
 

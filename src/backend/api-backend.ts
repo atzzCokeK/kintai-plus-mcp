@@ -12,14 +12,16 @@ import {
   type Task,
 } from '../api/projects.ts';
 import { fetchMyStaff, permissionRole } from '../api/staff.ts';
-import { parseStamps, type Stamp } from '../api/stamps.ts';
+import { parseStamps, STAMP_TYPE_CODES, type Stamp } from '../api/stamps.ts';
 import { parseWorkingRecords, type WorkingRecord } from '../api/working-records.ts';
 import {
   diffDays,
   endOfDay,
   formatCompactDate,
   formatSlashDate,
+  formatSlashDateTime,
   formatStampQuery,
+  JST_OFFSET,
   startOfDay,
 } from '../time/datetime.ts';
 import {
@@ -27,6 +29,7 @@ import {
   type Capability,
   type KintaiBackend,
   type Profile,
+  type PunchInput,
   type StampList,
 } from './types.ts';
 
@@ -190,6 +193,18 @@ export class ApiBackend implements KintaiBackend {
       days.push(...parseManhours(res, options.staffId));
     }
     return days;
+  }
+
+  async punch(input: PunchInput): Promise<{ stampedAt?: Date }> {
+    const client = await this.#getClient();
+    const res = await client.post([COMPANY_ID, 'stamps'], {
+      type: STAMP_TYPE_CODES[input.type],
+      stampedAt: formatSlashDateTime(input.at),
+      timezone: JST_OFFSET,
+      ...(input.telework ? { telework: 1 } : {}),
+    });
+    const [stamp] = parseStamps(res);
+    return stamp ? { stampedAt: stamp.stampedAt } : {};
   }
 
   async #fetchProfile(): Promise<Profile> {
