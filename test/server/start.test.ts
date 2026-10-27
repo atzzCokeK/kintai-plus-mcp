@@ -51,6 +51,14 @@ describe('buildServerSetup', () => {
     expect(setup.role).toBe('employee');
     expect(setup.tools.every((t) => t.audience === 'everyone')).toBe(true);
     expect(setup.tools.map((t) => t.name)).toContain('get_my_profile');
+    expect(setup.tools.map((t) => t.name)).not.toContain('list_staff');
+  });
+
+  it('読み取り専用モードでは書き込みツールを出さない', async () => {
+    const { runtime } = await runtimeWith(1, { KINTAI_PLUS_READ_ONLY: 'true' });
+    const setup = await buildServerSetup(runtime);
+    expect(setup.tools.some((t) => t.kind === 'write')).toBe(false);
+    expect(setup.tools.map((t) => t.name)).toContain('list_staff');
   });
 
   it('未ログインでも起動でき、ツールは login を案内する', async () => {
@@ -69,6 +77,9 @@ describe('buildServerSetup', () => {
     const { runtime } = await runtimeWith(1);
     const setup = await buildServerSetup(runtime);
     expect(setup.role).toBe('company_admin');
+    expect(setup.tools.map((t) => t.name)).toEqual(
+      expect.arrayContaining(['list_staff', 'get_team_stamps']),
+    );
     expect(setup.createServer()).not.toBe(setup.createServer());
   });
 });

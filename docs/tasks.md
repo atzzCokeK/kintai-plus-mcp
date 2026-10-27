@@ -5,8 +5,8 @@
 ## 現在の状況
 
 - 最終更新: 2026-10-27
-- 進行中: T9
-- 次にやること: T9 → T10
+- 進行中: T10
+- 次にやること: T10 → T11
 - メモ: GitHub リポジトリ `atzzCokeK/kintai-plus-mcp` は Private。Public 化は v0.1.0 リリース時
 
 ## T1. リポジトリ基盤
@@ -63,10 +63,10 @@
 - [x] `CONFIRM_WRITES=true` 時の Elicitation による確認
 
 ## T9. 管理者向けツール
-- [ ] `list_staff`（ページ送りを自動化）
-- [ ] `get_team_stamps`（50 人ごとに分割）
-- [ ] `get_working_statuses`
-- [ ] `get_project_members`
+- [x] `list_staff`（ページ送りを自動化）
+- [x] `get_team_stamps`（50 人ごとに分割）
+- [x] `get_working_statuses`
+- [x] `get_project_members`
 
 ## T10. 集計
 - [ ] `summarize_working_hours`（実働合計、出勤日数、休日出勤日数、法定時間外の目安）

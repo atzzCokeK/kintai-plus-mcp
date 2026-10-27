@@ -5,15 +5,18 @@ import { type ManhourDay, parseManhours } from '../api/manhours.ts';
 import { chunk, type DateRange, paginate, splitByDays, splitByMonths } from '../api/paging.ts';
 import {
   type Project,
+  type ProjectMembers,
+  parseProjectMembers,
   parseProjects,
   parseStaffProjectIds,
   parseTasks,
   readTotalCount,
   type Task,
 } from '../api/projects.ts';
-import { fetchMyStaff, permissionRole } from '../api/staff.ts';
+import { fetchMyStaff, parseStaffList, permissionRole, type StaffSummary } from '../api/staff.ts';
 import { parseStamps, STAMP_TYPE_CODES, type Stamp } from '../api/stamps.ts';
 import { parseWorkingRecords, type WorkingRecord } from '../api/working-records.ts';
+import { parseWorkingStatuses, type WorkingStatus } from '../api/working-statuses.ts';
 import {
   diffDays,
   endOfDay,
@@ -50,6 +53,15 @@ const PROJECT_MAX_ITEMS = 1000;
 /** 工数取得の期間（上限は未確認のため 31 日ごとに分ける） */
 const MANHOUR_MAX_DAYS = 31;
 const CACHE_TTL_MS = 5 * 60_000;
+/** 従業員一覧: 20 人/ページ、page は 0 始まり */
+const STAFF_PAGE_SIZE = 20;
+const STAFF_MAX_ITEMS = 1000;
+/** 複数従業員の打刻: 1 日・50 人・1000 件まで */
+const TEAM_STAMP_MAX_STAFF = 50;
+/** 勤務処理取得: 1 回 1000 件まで */
+const WORKING_STATUS_MAX_SEARCH = 1000;
+
+type StaffList = { staff: StaffSummary[]; totalCount: number | undefined; truncated: boolean };
 
 export interface ApiBackendOptions {
   /** 保存済みの自分の staffId（再発行 API の応答で得たもの） */
@@ -65,6 +77,7 @@ export class ApiBackend implements KintaiBackend {
   #projects:
     | { value: Promise<{ projects: Project[]; truncated: boolean }>; at: number }
     | undefined;
+  #staff: { value: Promise<StaffList>; at: number } | undefined;
 
   readonly #knownStaffId: () => Promise<number | undefined>;
 
@@ -253,6 +266,73 @@ export class ApiBackend implements KintaiBackend {
       project_id: input.projectId,
       task_id: input.taskId,
     });
+  }
+
+  listStaff(): Promise<StaffList> {
+    if (this.#staff && Date.now() - this.#staff.at < CACHE_TTL_MS) return this.#staff.value;
+    const value = this.#fetchStaff().catch((error: unknown) => {
+      this.#staff = undefined;
+      throw error;
+    });
+    this.#staff = { value, at: Date.now() };
+    return value;
+  }
+
+  async #fetchStaff(): Promise<StaffList> {
+    const client = await this.#getClient();
+    const result = await paginate(
+      async (page) => {
+        const res = await client.get([COMPANY_ID, 'staffs'], { page });
+        return { items: parseStaffList(res), totalCount: readTotalCount(res) };
+      },
+      { pageSize: STAFF_PAGE_SIZE, maxItems: STAFF_MAX_ITEMS },
+    );
+    return { staff: result.items, totalCount: result.totalCount, truncated: result.truncated };
+  }
+
+  async getTeamStamps(date: LocalDate, staffIds: number[]): Promise<StampList> {
+    const client = await this.#getClient();
+    const stamps: Stamp[] = [];
+    let truncated = false;
+    const fetchIds = async (ids: number[]): Promise<void> => {
+      const res = await client.get([COMPANY_ID, 'multiple_stamps'], {
+        staff_ids: ids,
+        start_date: formatStampQuery(startOfDay(date)),
+        end_date: formatStampQuery(endOfDay(date)),
+      });
+      const page = parseStamps(res, ids.length === 1 ? ids[0] : undefined);
+      if (page.length >= STAMP_MAX_RECORDS && ids.length > 1) {
+        const half = Math.ceil(ids.length / 2);
+        await fetchIds(ids.slice(0, half));
+        await fetchIds(ids.slice(half));
+        return;
+      }
+      if (page.length >= STAMP_MAX_RECORDS) truncated = true;
+      stamps.push(...page);
+    };
+    for (const ids of chunk(staffIds, TEAM_STAMP_MAX_STAFF)) await fetchIds(ids);
+    stamps.sort((a, b) => a.stampedAt.getTime() - b.stampedAt.getTime());
+    return { stamps, truncated };
+  }
+
+  async getWorkingStatuses(
+    search: Array<{ staffId: number; date: LocalDate }>,
+  ): Promise<WorkingStatus[]> {
+    const client = await this.#getClient();
+    const out: WorkingStatus[] = [];
+    for (const part of chunk(search, WORKING_STATUS_MAX_SEARCH)) {
+      const res = await client.post(['working_statuses', 'search'], {
+        login_company_code: client.connection.companyId,
+        search: part.map((s) => ({ staff_id: s.staffId, date: s.date })),
+      });
+      out.push(...parseWorkingStatuses(res));
+    }
+    return out;
+  }
+
+  async getProjectMembers(projectId: number): Promise<ProjectMembers> {
+    const client = await this.#getClient();
+    return parseProjectMembers(await client.get([COMPANY_ID, 'project_staffs', projectId]));
   }
 
   async #fetchProfile(): Promise<Profile> {

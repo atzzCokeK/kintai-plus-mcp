@@ -1,10 +1,11 @@
 import type { Alert } from '../api/alerts.ts';
 import type { ManhourDay, ManhourItem } from '../api/manhours.ts';
 import type { DateRange } from '../api/paging.ts';
-import type { Project, Task } from '../api/projects.ts';
-import type { Role } from '../api/staff.ts';
+import type { Project, ProjectMembers, Task } from '../api/projects.ts';
+import type { Role, StaffSummary } from '../api/staff.ts';
 import type { Stamp, StampType } from '../api/stamps.ts';
 import type { WorkingRecord } from '../api/working-records.ts';
+import type { WorkingStatus } from '../api/working-statuses.ts';
 import type { LocalDate } from '../time/datetime.ts';
 
 /**
@@ -60,6 +61,19 @@ export interface KintaiBackend {
   saveManhours(input: SaveManhoursInput): Promise<void>;
   /** 自分の工数を削除する。taskId を省略するとそのプロジェクトの全タスク */
   deleteManhours(input: { date: LocalDate; projectId: number; taskId?: number }): Promise<void>;
+
+  // ---- 管理者向け ----
+  /** 管理下の従業員の一覧 */
+  listStaff(): Promise<{
+    staff: StaffSummary[];
+    totalCount: number | undefined;
+    truncated: boolean;
+  }>;
+  /** 複数従業員の 1 日分の打刻 */
+  getTeamStamps(date: LocalDate, staffIds: number[]): Promise<StampList>;
+  /** 勤務処理（欠勤・出張など） */
+  getWorkingStatuses(search: Array<{ staffId: number; date: LocalDate }>): Promise<WorkingStatus[]>;
+  getProjectMembers(projectId: number): Promise<ProjectMembers>;
 }
 
 export interface SaveManhoursInput {
