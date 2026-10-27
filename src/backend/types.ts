@@ -1,6 +1,7 @@
 import type { DateRange } from '../api/paging.ts';
 import type { Role } from '../api/staff.ts';
 import type { Stamp } from '../api/stamps.ts';
+import type { WorkingRecord } from '../api/working-records.ts';
 
 /**
  * 勤怠の操作を表すバックエンドのインターフェース。
@@ -38,6 +39,8 @@ export interface KintaiBackend {
   getMyProfile(): Promise<Profile>;
   /** 打刻履歴（両端の日を含む）。staffId を省略すると自分 */
   getStamps(range: DateRange, options?: { staffId?: number }): Promise<StampList>;
+  /** 勤務実績（両端の日を含む）。staffIds を省略すると自分 */
+  getWorkingRecords(range: DateRange, options?: { staffIds?: number[] }): Promise<WorkingRecord[]>;
 }
 
 export interface StampList {
