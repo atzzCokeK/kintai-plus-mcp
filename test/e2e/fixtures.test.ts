@@ -63,7 +63,7 @@ async function call(name: string, args: Record<string, unknown> = {}) {
 
 describe('フィクスチャでの通しの動作', () => {
   it('一般管理者にはすべてのツールを公開する', async () => {
-    expect(toolNames).toHaveLength(18);
+    expect(toolNames).toHaveLength(19);
     expect((await client.listTools()).map((t) => t.name)).toEqual(toolNames);
   });
 

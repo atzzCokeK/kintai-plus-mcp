@@ -37,6 +37,7 @@
 | `get_team_stamps` | 管理下の従業員の 1 日分の打刻と状況 |
 | `get_working_statuses` | 勤務処理（欠勤・出張など） |
 | `get_project_members` | プロジェクトのメンバー |
+| `find_overtime_risks` | 残業リスク検出（今月の法定時間外の目安と月末の着地予測。既定のしきい値は 45 時間） |
 
 ## 必要なもの
 

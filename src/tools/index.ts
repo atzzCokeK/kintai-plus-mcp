@@ -7,6 +7,7 @@ import {
 import { getAlertsTool } from './alerts.ts';
 import { checkAttendanceIssuesTool } from './attendance-issues.ts';
 import { deleteManhoursTool, saveManhoursTool } from './manhours-write.ts';
+import { findOvertimeRisksTool } from './overtime-risks.ts';
 import { getMyProfileTool } from './profile.ts';
 import { getManhoursTool, getMyProjectsTool, listProjectsTool, listTasksTool } from './projects.ts';
 import { punchTool } from './punch.ts';
@@ -36,4 +37,5 @@ export const ALL_TOOLS: readonly ToolDefinition[] = [
   getTeamStampsTool,
   getWorkingStatusesTool,
   getProjectMembersTool,
+  findOvertimeRisksTool,
 ];
