@@ -76,10 +76,10 @@
 - [x] 実環境向けの手動 E2E スクリプト（読み取り系のみ、CI では実行しない）
 
 ## T12. リリース
-- [ ] README の完成（セットアップ、各クライアントの設定例、管理者向けの API 有効化手順、ツール一覧、制約）
-- [ ] リリース用ワークフロー（Changesets + Trusted Publishing + provenance）
-- [ ] `server.json` と MCP Registry への公開
-- [ ] Public 化の前に docs/ の内容を見直す
+- [x] README の完成（セットアップ、各クライアントの設定例、管理者向けの API 有効化手順、ツール一覧、制約）
+- [x] リリース用ワークフロー（Changesets + Trusted Publishing + provenance）。初回の手作業は docs/release.md
+- [ ] `server.json` と MCP Registry への公開（server.json とワークフローは作成済み。実際の公開はリリース時。**ユーザー作業**）
+- [ ] Public 化の前に docs/ の内容を見直す（**ユーザー作業**）
 
 ## v0.1 以降の候補
 - 打刻漏れチェック `check_attendance_issues`
