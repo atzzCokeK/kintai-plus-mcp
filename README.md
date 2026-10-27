@@ -24,6 +24,7 @@
 | `get_working_records` | 勤務実績（労働区分・時刻・実働・休憩。31 日ごとに自動で分割） |
 | `summarize_working_hours` | 実働合計・出勤日数・休日出勤日数・法定時間外の目安（月ごとの内訳つき） |
 | `get_alerts` | アラート（打刻忘れ、遅刻、36協定 など） |
+| `check_attendance_issues` | 打刻漏れチェック（退勤・出勤・休憩戻の打刻忘れ、12 時間超の日、勤務間インターバル 11 時間未満、休日出勤） |
 | `list_projects` / `list_tasks` / `get_my_projects` | プロジェクトとタスク |
 | `get_manhours` | 工数（プロジェクト名・タスク名つき） |
 | `save_manhours` 【書き込み】 / `delete_manhours` 【書き込み】 | 工数の登録・更新・削除 |

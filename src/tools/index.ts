@@ -5,6 +5,7 @@ import {
   listStaffTool,
 } from './admin.ts';
 import { getAlertsTool } from './alerts.ts';
+import { checkAttendanceIssuesTool } from './attendance-issues.ts';
 import { deleteManhoursTool, saveManhoursTool } from './manhours-write.ts';
 import { getMyProfileTool } from './profile.ts';
 import { getManhoursTool, getMyProjectsTool, listProjectsTool, listTasksTool } from './projects.ts';
@@ -23,6 +24,7 @@ export const ALL_TOOLS: readonly ToolDefinition[] = [
   getWorkingRecordsTool,
   summarizeWorkingHoursTool,
   getAlertsTool,
+  checkAttendanceIssuesTool,
   listProjectsTool,
   listTasksTool,
   getMyProjectsTool,

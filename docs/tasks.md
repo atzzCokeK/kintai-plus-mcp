@@ -86,7 +86,7 @@
 - [ ] Public 化の前に docs/ の内容を見直す（**ユーザー作業**）
 
 ## v0.1 以降の候補
-- 打刻漏れチェック `check_attendance_issues`
+- [x] 打刻漏れチェック `check_attendance_issues`（夜勤は 16 時間以内なら 1 つの勤務として扱う。範囲の前日の打刻も見る）
 - 残業リスク検出 `find_overtime_risks`（管理者向け、月末の着地予測）
 - 定型プロンプト（MCP Prompts）
 - ブラウザモード（申請・スケジュール、API を使えない人向け）
