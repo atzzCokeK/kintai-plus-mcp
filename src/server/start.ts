@@ -18,7 +18,10 @@ export interface ServerSetup {
  * 起動時に権限を確認し、公開するツールを決める（ADR 0004）。
  * 未ログインや通信失敗でも起動はし、その場合は従業員向けのツールだけを出す。
  */
-export async function buildServerSetup(runtime: Runtime): Promise<ServerSetup> {
+export async function buildServerSetup(
+  runtime: Runtime,
+  options: { now?: () => Date } = {},
+): Promise<ServerSetup> {
   const { logger, config } = runtime;
   const backend = new ApiBackend(() => runtime.getClient(), {
     knownStaffId: async () => (await runtime.tokens.getCredentials()).staffId,
@@ -51,7 +54,7 @@ export async function buildServerSetup(runtime: Runtime): Promise<ServerSetup> {
     backend,
     config,
     logger,
-    now: () => new Date(),
+    now: options.now ?? (() => new Date()),
     confirm: async () => {}, // 呼び出しごとに createMcpServer が差し替える
   };
   return {

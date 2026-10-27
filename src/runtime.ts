@@ -1,5 +1,5 @@
 import { dirname, join } from 'node:path';
-import { KintaiApiClient } from './api/client.ts';
+import { KintaiApiClient, type RecordedResponse } from './api/client.ts';
 import type { Connection } from './api/endpoint.ts';
 import { RequestThrottle } from './api/throttle.ts';
 import { reissueToken } from './api/token.ts';
@@ -24,6 +24,8 @@ export interface RuntimeOptions {
   now?: () => Date;
   writeLog?: (line: string) => void;
   keychain?: KeychainCredentialStore;
+  /** 手元の E2E で応答を記録する */
+  onResponse?: (response: RecordedResponse) => void;
 }
 
 export interface Runtime {
@@ -60,6 +62,7 @@ export async function createRuntime(options: RuntimeOptions = {}): Promise<Runti
       throttle,
       logger,
       ...(options.fetch ? { fetch: options.fetch } : {}),
+      ...(options.onResponse ? { onResponse: options.onResponse } : {}),
     });
 
   const lockPath = join(dirname(defaultCredentialsPath(env)), 'refresh.lock');

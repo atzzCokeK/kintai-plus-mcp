@@ -1,0 +1,32 @@
+{
+  "success": true,
+  "response": {
+    "projects": [
+      {
+        "project_id": 501,
+        "name": "社内基盤の改善",
+        "short_name": "基盤",
+        "project_code": "P501",
+        "start_date": "2026/04/01",
+        "end_date": null
+      },
+      {
+        "project_id": 502,
+        "name": "架空商事向け開発",
+        "short_name": "架空商事",
+        "project_code": "P502",
+        "start_date": "2026/07/01",
+        "end_date": "2027/03/31"
+      },
+      {
+        "project_id": 503,
+        "name": "終了済みの案件",
+        "short_name": null,
+        "project_code": "P503",
+        "start_date": "2025/01/01",
+        "end_date": "2025/12/31"
+      }
+    ],
+    "TotalCount": 3
+  }
+}

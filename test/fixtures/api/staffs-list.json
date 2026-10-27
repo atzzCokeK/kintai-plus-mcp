@@ -1,0 +1,32 @@
+{
+  "success": true,
+  "response": {
+    "staffs": [
+      {
+        "staffId": 1001,
+        "lastName": "架空",
+        "firstName": "花子",
+        "email": "hanako@example.com",
+        "staffNum": "E0001",
+        "organization": { "name": "開発部" }
+      },
+      {
+        "staffId": 1002,
+        "lastName": "仮名",
+        "firstName": "次郎",
+        "email": "jiro@example.com",
+        "staffNum": "E0002",
+        "organization": { "name": "開発部" }
+      },
+      {
+        "staffId": 1003,
+        "lastName": "見本",
+        "firstName": "三郎",
+        "email": "saburo@example.com",
+        "staffNum": "E0003",
+        "organization": { "name": "営業部" }
+      }
+    ],
+    "TotalCount": 3
+  }
+}
