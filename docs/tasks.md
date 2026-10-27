@@ -51,8 +51,8 @@
 - [x] `get_my_profile`
 
 ## T7. 参照系ツール
-- [ ] `get_today_status`
-- [ ] `get_stamps`（期間の自動分割）
+- [x] `get_today_status`
+- [x] `get_stamps`（期間の自動分割）
 - [ ] `get_working_records`（31 日ごとに自動分割）
 - [ ] `get_alerts`
 - [ ] `list_projects` / `list_tasks` / `get_my_projects` / `get_manhours`

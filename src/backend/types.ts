@@ -1,4 +1,6 @@
+import type { DateRange } from '../api/paging.ts';
 import type { Role } from '../api/staff.ts';
+import type { Stamp } from '../api/stamps.ts';
 
 /**
  * 勤怠の操作を表すバックエンドのインターフェース。
@@ -34,4 +36,12 @@ export interface KintaiBackend {
   readonly kind: 'api';
   readonly capabilities: ReadonlySet<Capability>;
   getMyProfile(): Promise<Profile>;
+  /** 打刻履歴（両端の日を含む）。staffId を省略すると自分 */
+  getStamps(range: DateRange, options?: { staffId?: number }): Promise<StampList>;
+}
+
+export interface StampList {
+  stamps: Stamp[];
+  /** API の件数上限に達して取りきれなかった */
+  truncated: boolean;
 }
