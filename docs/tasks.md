@@ -88,5 +88,5 @@
 ## v0.1 以降の候補
 - [x] 打刻漏れチェック `check_attendance_issues`（夜勤は 16 時間以内なら 1 つの勤務として扱う。範囲の前日の打刻も見る）
 - [x] 残業リスク検出 `find_overtime_risks`（管理者向け、月末の着地予測。ここまでの出勤日あたりのペース × 残りの平日。祝日は考慮しない）
-- 定型プロンプト（MCP Prompts）
+- [x] 定型プロンプト（MCP Prompts）: `end_of_day` / `log_manhours` / `monthly_review` / `team_status`。使うツールが公開されているときだけ出す
 - ブラウザモード（申請・スケジュール、API を使えない人向け）

@@ -67,6 +67,18 @@ describe('フィクスチャでの通しの動作', () => {
     expect((await client.listTools()).map((t) => t.name)).toEqual(toolNames);
   });
 
+  it('定型プロンプトも公開する', async () => {
+    const res = (await client.request('prompts/list')).result as {
+      prompts: Array<{ name: string }>;
+    };
+    expect(res.prompts.map((p) => p.name)).toEqual([
+      'end_of_day',
+      'log_manhours',
+      'monthly_review',
+      'team_status',
+    ]);
+  });
+
   it('get_my_profile', async () => {
     const res = await call('get_my_profile');
     expect(res.json).toMatchObject({

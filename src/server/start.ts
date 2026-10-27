@@ -3,6 +3,7 @@ import { serveStdio } from '@modelcontextprotocol/server/stdio';
 import type { Role } from '../api/staff.ts';
 import { ApiBackend } from '../backend/api-backend.ts';
 import { NotLoggedInError } from '../credentials/token-manager.ts';
+import { ALL_PROMPTS } from '../prompts/index.ts';
 import type { Runtime } from '../runtime.ts';
 import { ALL_TOOLS } from '../tools/index.ts';
 import { selectTools, type ToolContext, type ToolDefinition } from '../tools/registry.ts';
@@ -61,7 +62,7 @@ export async function buildServerSetup(
     role,
     tools,
     createServer: () =>
-      createMcpServer(ctx, tools, { onAuthError: () => runtime.tokens.invalidate() }),
+      createMcpServer(ctx, tools, { onAuthError: () => runtime.tokens.invalidate() }, ALL_PROMPTS),
   };
 }
 
