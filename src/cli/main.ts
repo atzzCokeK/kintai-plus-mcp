@@ -210,7 +210,7 @@ async function status(deps: CliDeps): Promise<number> {
 
   let code = 0;
   try {
-    const staff = await fetchMyStaff(await runtime.getClient());
+    const staff = await fetchMyStaff(await runtime.getClient(), { staffId: credentials.staffId });
     lines.push(`権限: ${ROLE_LABEL[permissionRole(staff.permissionType)]}`);
   } catch (error) {
     code = 1;

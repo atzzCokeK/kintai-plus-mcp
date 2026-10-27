@@ -20,7 +20,9 @@ export interface ServerSetup {
  */
 export async function buildServerSetup(runtime: Runtime): Promise<ServerSetup> {
   const { logger, config } = runtime;
-  const backend = new ApiBackend(() => runtime.getClient());
+  const backend = new ApiBackend(() => runtime.getClient(), {
+    knownStaffId: async () => (await runtime.tokens.getCredentials()).staffId,
+  });
 
   let role: Role = 'employee';
   try {

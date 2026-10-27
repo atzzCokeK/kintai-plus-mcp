@@ -47,3 +47,35 @@ describe('permissionRole', () => {
     expect(permissionRole(9)).toBe('employee');
   });
 });
+
+describe('parseStaffList', () => {
+  it('一覧の形（配列・{ staffs }）から全員を読む', async () => {
+    const { parseStaffList } = await import('../../src/api/staff.ts');
+    const list = [
+      { staffId: 1, lastName: 'A', firstName: 'a' },
+      { staff_id: 2, name: 'B b' },
+      { foo: 'no id' },
+    ];
+    expect(parseStaffList(list).map((s) => s.staffId)).toEqual([1, 2]);
+    expect(parseStaffList({ staffs: list, TotalCount: 2 }).map((s) => s.staffId)).toEqual([1, 2]);
+    expect(parseStaffList({ staffId: 9 }).map((s) => s.staffId)).toEqual([9]);
+  });
+});
+
+describe('fetchMyStaff', () => {
+  it('自分の staffId がわかっていれば /staffs/{staffId} で取り、一覧なら一致する人を選ぶ', async () => {
+    const { fetchMyStaff } = await import('../../src/api/staff.ts');
+    const { fakeClient } = await import('../helpers/fake-client.ts');
+    const { client, calls } = fakeClient(() => [{ staffId: 1 }, { staffId: 7, permissionType: 3 }]);
+    const me = await fetchMyStaff(client, { staffId: 7 });
+    expect(calls[0]?.url.pathname).toBe('/api/cooperation/acme/staffs/7');
+    expect(me.staffId).toBe(7);
+  });
+
+  it('staffId がわからず、複数人が返ったら自分を決められないのでエラー（誤って管理者扱いしない）', async () => {
+    const { fetchMyStaff } = await import('../../src/api/staff.ts');
+    const { fakeClient } = await import('../helpers/fake-client.ts');
+    const { client } = fakeClient(() => [{ staffId: 1, permissionType: 1 }, { staffId: 7 }]);
+    await expect(fetchMyStaff(client)).rejects.toMatchObject({ kind: 'invalid_response' });
+  });
+});

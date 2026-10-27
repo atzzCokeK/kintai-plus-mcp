@@ -51,6 +51,11 @@ const PROJECT_MAX_ITEMS = 1000;
 const MANHOUR_MAX_DAYS = 31;
 const CACHE_TTL_MS = 5 * 60_000;
 
+export interface ApiBackendOptions {
+  /** 保存済みの自分の staffId（再発行 API の応答で得たもの） */
+  knownStaffId?: () => Promise<number | undefined>;
+}
+
 /** クラウド勤怠Plus 公開 API を使うバックエンド */
 export class ApiBackend implements KintaiBackend {
   readonly kind = 'api' as const;
@@ -61,9 +66,15 @@ export class ApiBackend implements KintaiBackend {
     | { value: Promise<{ projects: Project[]; truncated: boolean }>; at: number }
     | undefined;
 
+  readonly #knownStaffId: () => Promise<number | undefined>;
+
   /** クライアントを直接、または必要になったときに作る関数で渡す（未ログインでもサーバーを起動できるように） */
-  constructor(client: KintaiApiClient | (() => Promise<KintaiApiClient>)) {
+  constructor(
+    client: KintaiApiClient | (() => Promise<KintaiApiClient>),
+    options: ApiBackendOptions = {},
+  ) {
     this.#getClient = typeof client === 'function' ? client : async () => client;
+    this.#knownStaffId = options.knownStaffId ?? (async () => undefined);
   }
 
   getMyProfile(): Promise<Profile> {
@@ -245,7 +256,8 @@ export class ApiBackend implements KintaiBackend {
   }
 
   async #fetchProfile(): Promise<Profile> {
-    const staff = await fetchMyStaff(await this.#getClient());
+    const client = await this.#getClient();
+    const staff = await fetchMyStaff(client, { staffId: await this.#knownStaffId() });
     const profile: Profile = { staffId: staff.staffId, role: permissionRole(staff.permissionType) };
     if (staff.name !== undefined) profile.name = staff.name;
     if (staff.staffNum !== undefined) profile.staffNum = staff.staffNum;
