@@ -5,8 +5,8 @@
 ## 現在の状況
 
 - 最終更新: 2026-10-27
-- 進行中: T7
-- 次にやること: T7 → T8
+- 進行中: T8
+- 次にやること: T8 → T9
 - メモ: GitHub リポジトリ `atzzCokeK/kintai-plus-mcp` は Private。Public 化は v0.1.0 リリース時
 
 ## T1. リポジトリ基盤
@@ -55,7 +55,7 @@
 - [x] `get_stamps`（期間の自動分割）
 - [x] `get_working_records`（31 日ごとに自動分割）
 - [x] `get_alerts`
-- [ ] `list_projects` / `list_tasks` / `get_my_projects` / `get_manhours`
+- [x] `list_projects` / `list_tasks` / `get_my_projects` / `get_manhours`
 
 ## T8. 書き込み系ツール
 - [ ] `punch`（種別必須、その日の打刻履歴との矛盾チェック、`force`、テレワーク）

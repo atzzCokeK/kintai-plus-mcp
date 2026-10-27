@@ -1,7 +1,16 @@
 import { type Alert, parseAlerts } from '../api/alerts.ts';
 import type { KintaiApiClient } from '../api/client.ts';
 import { COMPANY_ID } from '../api/endpoint.ts';
-import { chunk, type DateRange, splitByDays, splitByMonths } from '../api/paging.ts';
+import { type ManhourDay, parseManhours } from '../api/manhours.ts';
+import { chunk, type DateRange, paginate, splitByDays, splitByMonths } from '../api/paging.ts';
+import {
+  type Project,
+  parseProjects,
+  parseStaffProjectIds,
+  parseTasks,
+  readTotalCount,
+  type Task,
+} from '../api/projects.ts';
 import { fetchMyStaff, permissionRole } from '../api/staff.ts';
 import { parseStamps, type Stamp } from '../api/stamps.ts';
 import { parseWorkingRecords, type WorkingRecord } from '../api/working-records.ts';
@@ -9,6 +18,7 @@ import {
   diffDays,
   endOfDay,
   formatCompactDate,
+  formatSlashDate,
   formatStampQuery,
   startOfDay,
 } from '../time/datetime.ts';
@@ -29,6 +39,12 @@ const STAMP_MAX_REQUESTS = 12;
 const WORKING_RECORD_MAX_DAYS = 31;
 /** 1 リクエストで指定する従業員数（上限は未確認のため控えめに） */
 const WORKING_RECORD_STAFF_PER_REQUEST = 50;
+/** プロジェクト・タスク一覧: 50 件/ページ */
+const PROJECT_PAGE_SIZE = 50;
+const PROJECT_MAX_ITEMS = 1000;
+/** 工数取得の期間（上限は未確認のため 31 日ごとに分ける） */
+const MANHOUR_MAX_DAYS = 31;
+const CACHE_TTL_MS = 5 * 60_000;
 
 /** クラウド勤怠Plus 公開 API を使うバックエンド */
 export class ApiBackend implements KintaiBackend {
@@ -36,6 +52,9 @@ export class ApiBackend implements KintaiBackend {
   readonly capabilities: ReadonlySet<Capability> = new Set(ALL_CAPABILITIES);
   readonly #getClient: () => Promise<KintaiApiClient>;
   #profile: Promise<Profile> | undefined;
+  #projects:
+    | { value: Promise<{ projects: Project[]; truncated: boolean }>; at: number }
+    | undefined;
 
   /** クライアントを直接、または必要になったときに作る関数で渡す（未ログインでもサーバーを起動できるように） */
   constructor(client: KintaiApiClient | (() => Promise<KintaiApiClient>)) {
@@ -113,6 +132,64 @@ export class ApiBackend implements KintaiBackend {
   async getAlerts(): Promise<Alert[]> {
     const client = await this.#getClient();
     return parseAlerts(await client.get([COMPANY_ID, 'alerts']));
+  }
+
+  listProjects(): Promise<{ projects: Project[]; truncated: boolean }> {
+    if (this.#projects && Date.now() - this.#projects.at < CACHE_TTL_MS)
+      return this.#projects.value;
+    const value = this.#fetchProjects().catch((error: unknown) => {
+      this.#projects = undefined;
+      throw error;
+    });
+    this.#projects = { value, at: Date.now() };
+    return value;
+  }
+
+  async #fetchProjects(): Promise<{ projects: Project[]; truncated: boolean }> {
+    const client = await this.#getClient();
+    const result = await paginate(
+      async (page) => {
+        const res = await client.get([COMPANY_ID, 'projects'], { page });
+        return { items: parseProjects(res), totalCount: readTotalCount(res) };
+      },
+      { pageSize: PROJECT_PAGE_SIZE, maxItems: PROJECT_MAX_ITEMS },
+    );
+    return { projects: result.items, truncated: result.truncated };
+  }
+
+  async listTasks(projectId: number): Promise<{ tasks: Task[]; truncated: boolean }> {
+    const client = await this.#getClient();
+    const result = await paginate(
+      async (page) => {
+        const res = await client.get([COMPANY_ID, projectId, 'tasks'], { page });
+        return { items: parseTasks(res), totalCount: readTotalCount(res) };
+      },
+      { pageSize: PROJECT_PAGE_SIZE, maxItems: PROJECT_MAX_ITEMS },
+    );
+    return { tasks: result.items, truncated: result.truncated };
+  }
+
+  async getMyProjectIds(): Promise<number[]> {
+    const { staffId } = await this.getMyProfile();
+    const client = await this.#getClient();
+    return parseStaffProjectIds(await client.get([COMPANY_ID, 'staff_projects', staffId]));
+  }
+
+  async getManhours(range: DateRange, options: { staffId?: number } = {}): Promise<ManhourDay[]> {
+    const client = await this.#getClient();
+    const path =
+      options.staffId === undefined
+        ? [COMPANY_ID, 'manhours']
+        : [COMPANY_ID, 'manhours', options.staffId];
+    const days: ManhourDay[] = [];
+    for (const period of splitByDays(range.from, range.to, MANHOUR_MAX_DAYS, { maxChunks: 4 })) {
+      const res = await client.get(path, {
+        start_date: formatSlashDate(period.from),
+        end_date: formatSlashDate(period.to),
+      });
+      days.push(...parseManhours(res, options.staffId));
+    }
+    return days;
   }
 
   async #fetchProfile(): Promise<Profile> {
