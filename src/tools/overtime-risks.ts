@@ -56,6 +56,7 @@ export const findOvertimeRisksTool = defineTool({
     const monthEnd = endOfMonth(monthStart);
     // 今日の実績は途中なので、昨日までで数える
     const yesterday = addDays(today, -1);
+    // biome-ignore lint/complexity/useMathMinMax: YYYY-MM-DD の文字列の比較なので Math.min は使えない
     const asOf = yesterday < monthEnd ? yesterday : monthEnd;
     const thresholdHours = input.thresholdHours ?? 45;
 
