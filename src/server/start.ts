@@ -45,7 +45,13 @@ export async function buildServerSetup(runtime: Runtime): Promise<ServerSetup> {
     `Starting MCP server (role: ${role}, tools: ${tools.length}${config.readOnly ? ', read-only' : ''})`,
   );
 
-  const ctx: ToolContext = { backend, config, logger, now: () => new Date() };
+  const ctx: ToolContext = {
+    backend,
+    config,
+    logger,
+    now: () => new Date(),
+    confirm: async () => {}, // 呼び出しごとに createMcpServer が差し替える
+  };
   return {
     role,
     tools,

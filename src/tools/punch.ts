@@ -59,6 +59,11 @@ export const punchTool = defineTool({
       );
     }
 
+    await ctx.confirm(
+      `Punch ${STAMP_TYPE_LABEL[input.type]} (${input.type})${input.telework ? '・テレワーク' : ''} now? ` +
+        'It is recorded at the current time and cannot be edited via the API.' +
+        (check.ok ? '' : ` Warning: ${check.reason}`),
+    );
     const result = await ctx.backend.punch({
       type: input.type,
       at: now,

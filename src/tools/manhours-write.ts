@@ -104,6 +104,13 @@ export const saveManhoursTool = defineTool({
       );
     }
 
+    await ctx.confirm(
+      `Save man-hours for ${input.date}: ` +
+        input.entries
+          .map((e) => `project ${e.projectId} / task ${e.taskId}: ${formatMinutes(e.minutes)}`)
+          .join(', ') +
+        `? Day total will be ${formatMinutes(dayTotal)}.`,
+    );
     await ctx.backend.saveManhours({ date: input.date, projects: payload });
 
     const projectNames = await ctx.backend
@@ -163,6 +170,11 @@ export const deleteManhoursTool = defineTool({
         note: 'There were no man-hours to delete for this project/task on this day.',
       };
     }
+    await ctx.confirm(
+      `Delete man-hours for ${input.date}, project ${input.projectId}: ` +
+        removed.map((i) => `task ${i.taskId} (${formatMinutes(i.minutes)})`).join(', ') +
+        '?',
+    );
     await ctx.backend.deleteManhours({
       date: input.date,
       projectId: input.projectId,

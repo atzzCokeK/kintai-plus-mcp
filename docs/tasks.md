@@ -5,8 +5,8 @@
 ## 現在の状況
 
 - 最終更新: 2026-10-27
-- 進行中: T8
-- 次にやること: T8 → T9
+- 進行中: T9
+- 次にやること: T9 → T10
 - メモ: GitHub リポジトリ `atzzCokeK/kintai-plus-mcp` は Private。Public 化は v0.1.0 リリース時
 
 ## T1. リポジトリ基盤
@@ -60,7 +60,7 @@
 ## T8. 書き込み系ツール
 - [x] `punch`（種別必須、その日の打刻履歴との矛盾チェック、`force`、テレワーク）
 - [x] `save_manhours` / `delete_manhours`
-- [ ] `CONFIRM_WRITES=true` 時の Elicitation による確認
+- [x] `CONFIRM_WRITES=true` 時の Elicitation による確認
 
 ## T9. 管理者向けツール
 - [ ] `list_staff`（ページ送りを自動化）
