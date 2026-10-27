@@ -1,0 +1,53 @@
+{
+  "name": "kintai-plus-mcp",
+  "version": "0.0.0",
+  "description": "Unofficial MCP server for マネーフォワード クラウド勤怠Plus (formerly AKASHI) public API",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "kintai",
+    "attendance",
+    "akashi",
+    "勤怠"
+  ],
+  "license": "MIT",
+  "author": "atzzCokeK",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/atzzCokeK/kintai-plus-mcp.git"
+  },
+  "type": "module",
+  "bin": {
+    "kintai-plus-mcp": "./dist/cli.mjs"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "packageManager": "pnpm@8.15.6",
+  "scripts": {
+    "build": "tsdown",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check .",
+    "format": "biome check --write .",
+    "changeset": "changeset"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/server": "^2.4.0",
+    "@napi-rs/keyring": "^2.1.2",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.6",
+    "@changesets/changelog-github": "^1.0.1",
+    "@changesets/cli": "^3",
+    "@types/node": "^22",
+    "tsdown": "^0.23",
+    "typescript": "^7",
+    "vitest": "^5"
+  }
+}
