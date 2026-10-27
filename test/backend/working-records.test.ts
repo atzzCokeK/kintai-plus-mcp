@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { ApiBackend } from '../../src/backend/api-backend.ts';
 import { fakeClient } from '../helpers/fake-client.ts';
 
-function handler(method: string, url: URL) {
+function handler(_method: string, url: URL) {
   if (url.pathname.endsWith('/staffs'))
     return { staffId: 7, permissionGroup: { permissionType: 3 } };
   return {

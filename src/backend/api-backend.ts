@@ -1,3 +1,4 @@
+import { type Alert, parseAlerts } from '../api/alerts.ts';
 import type { KintaiApiClient } from '../api/client.ts';
 import { COMPANY_ID } from '../api/endpoint.ts';
 import { chunk, type DateRange, splitByDays, splitByMonths } from '../api/paging.ts';
@@ -107,6 +108,11 @@ export class ApiBackend implements KintaiBackend {
     return records.sort((a, b) =>
       a.date === b.date ? (a.staffId ?? 0) - (b.staffId ?? 0) : a.date < b.date ? -1 : 1,
     );
+  }
+
+  async getAlerts(): Promise<Alert[]> {
+    const client = await this.#getClient();
+    return parseAlerts(await client.get([COMPANY_ID, 'alerts']));
   }
 
   async #fetchProfile(): Promise<Profile> {

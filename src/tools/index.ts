@@ -1,3 +1,4 @@
+import { getAlertsTool } from './alerts.ts';
 import { getMyProfileTool } from './profile.ts';
 import type { ToolDefinition } from './registry.ts';
 import { getStampsTool, getTodayStatusTool } from './stamps.ts';
@@ -9,4 +10,5 @@ export const ALL_TOOLS: readonly ToolDefinition[] = [
   getTodayStatusTool,
   getStampsTool,
   getWorkingRecordsTool,
+  getAlertsTool,
 ];

@@ -1,3 +1,4 @@
+import type { Alert } from '../api/alerts.ts';
 import type { DateRange } from '../api/paging.ts';
 import type { Role } from '../api/staff.ts';
 import type { Stamp } from '../api/stamps.ts';
@@ -41,6 +42,8 @@ export interface KintaiBackend {
   getStamps(range: DateRange, options?: { staffId?: number }): Promise<StampList>;
   /** 勤務実績（両端の日を含む）。staffIds を省略すると自分 */
   getWorkingRecords(range: DateRange, options?: { staffIds?: number[] }): Promise<WorkingRecord[]>;
+  /** 自分のアラート（API では絞り込めない） */
+  getAlerts(): Promise<Alert[]>;
 }
 
 export interface StampList {
