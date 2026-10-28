@@ -4,14 +4,17 @@
 
 ## 現在の状況
 
-- 最終更新: 2026-10-27
-- v0.1.0 の実装は T1〜T12 まで完了。加えて「v0.1 以降の候補」のうち API だけでできる 3 つ（打刻漏れチェック、残業リスク検出、定型プロンプト）も実装済み（ツール 19、プロンプト 4、テスト 359 件。lint は警告でも失敗する設定）。ブランチ `claude/loop-engineering-tvx3ba`
+- 最終更新: 2026-10-28
+- v0.1.0 の実装（T1〜T12）と「v0.1 以降の候補」のうち 3 つ（打刻漏れチェック、残業リスク検出、定型プロンプト）は、タスクごとの PR（#1〜#13）で main にマージ済み（ツール 19、プロンプト 4、テスト 359 件）
+- 詰まっている点: Release ワークフローが「chore: release」PR を作れずに失敗する（`GitHub Actions is not permitted to create or approve pull requests`）。リポジトリの Settings > Actions > General > Workflow permissions で「Allow GitHub Actions to create and approve pull requests」を有効にすると直る。`changeset-release/main` ブランチは作られている
 - 残っているのはユーザーの判断・作業が要るもの:
-  1. 実環境で `pnpm e2e --record` を実行し、[api-notes.md](./api-notes.md) の「未確認事項」を確かめる（応答の形・パラメータ名・page の始まり・DELETE の渡し方など）。違っていたらパーサーとフィクスチャを直す
-  2. npm の初回公開と Trusted Publisher の設定、MCP Registry への公開、Public 化前の docs/ の見直し（手順は [release.md](./release.md)）
-  3. ブラウザモード（申請・スケジュール）: ログインの扱い・規約の解釈・Playwright の扱いなど設計判断が必要（ADR 0001）。着手前に相談
+  1. 上の Actions の設定
+  2. 実環境で `pnpm e2e --record` を実行し、[api-notes.md](./api-notes.md) の「未確認事項」を確かめる（応答の形・パラメータ名・page の始まり・DELETE の渡し方など）。違っていたらパーサーとフィクスチャを直す
+  3. npm の初回公開と Trusted Publisher の設定、MCP Registry への公開、Public 化前の docs/ の見直し（手順は [release.md](./release.md)）。「chore: release」PR をマージすると 0.1.0 の公開に進むので、これらが済んでから
+  4. ブラウザモード（申請・スケジュール）: ログインの扱い・規約の解釈・Playwright の扱いなど設計判断が必要（ADR 0001）。着手前に相談
 - 途中で決めたこと（ユーザー未確認）: ADR 0007（期限不明のトークンは初回に再発行）、所定休日の時間外は 1 日 8 時間超で数える（design.md に追記）、自分の従業員情報は保存済みの staffId で取る、打刻漏れチェックの判定（夜勤は 16 時間以内、12 時間超・インターバル 11 時間未満を警告）、残業リスクの予測方法（ペース × 残りの平日、しきい値 45 時間）
-- メモ: GitHub リポジトリ `atzzCokeK/kintai-plus-mcp` は Private。Public 化は v0.1.0 リリース時。リリース時のバージョンは changeset により 0.1.0 になる
+- 進め方: 1 タスク（または関連する小さな変更のまとまり）ごとに PR を作り、CI が通ったら main にマージしてから次へ進む
+- メモ: GitHub リポジトリ `atzzCokeK/kintai-plus-mcp` は Private。Public 化は v0.1.0 リリース時
 
 ## T1. リポジトリ基盤
 - [x] package.json（`bin: kintai-plus-mcp`、Node 22+、ESM）、tsconfig、tsdown、Vitest、Biome
