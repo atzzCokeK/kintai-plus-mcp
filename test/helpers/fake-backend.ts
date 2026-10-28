@@ -28,5 +28,11 @@ export function fakeContext(
   env: Record<string, string> = {},
   now = new Date('2026-10-27T01:00:00Z'),
 ): ToolContext {
-  return { backend, config: loadConfig(env), logger: silentLogger, now: () => now };
+  return {
+    backend,
+    config: loadConfig(env),
+    logger: silentLogger,
+    now: () => now,
+    confirm: async () => {},
+  };
 }

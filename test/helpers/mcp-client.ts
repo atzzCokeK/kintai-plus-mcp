@@ -1,11 +1,28 @@
 import { InMemoryTransport, type McpServer } from '@modelcontextprotocol/server';
 
 /** SDK のクライアントを使わずに、JSON-RPC を直接やり取りする最小のテスト用クライアント */
-export async function connectTestClient(server: McpServer) {
+export interface TestClientOptions {
+  capabilities?: Record<string, unknown>;
+  /** サーバーからのリクエスト（elicitation/create など）に答える */
+  onServerRequest?: (method: string, params: unknown) => unknown;
+}
+
+export async function connectTestClient(server: McpServer, options: TestClientOptions = {}) {
   const [clientSide, serverSide] = InMemoryTransport.createLinkedPair();
   const pending = new Map<number, (message: Record<string, unknown>) => void>();
+  const serverRequests: Array<{ method: string; params: unknown }> = [];
   clientSide.onmessage = (message) => {
     const m = message as Record<string, unknown>;
+    if (typeof m.method === 'string' && m.id !== undefined) {
+      serverRequests.push({ method: m.method, params: m.params });
+      const result = options.onServerRequest?.(m.method, m.params);
+      void clientSide.send(
+        (result === undefined
+          ? { jsonrpc: '2.0', id: m.id, error: { code: -32601, message: 'not supported' } }
+          : { jsonrpc: '2.0', id: m.id, result }) as never,
+      );
+      return;
+    }
     if (typeof m.id === 'number' && pending.has(m.id)) {
       pending.get(m.id)?.(m);
       pending.delete(m.id);
@@ -25,13 +42,14 @@ export async function connectTestClient(server: McpServer) {
 
   const init = await request('initialize', {
     protocolVersion: '2025-06-18',
-    capabilities: {},
+    capabilities: options.capabilities ?? {},
     clientInfo: { name: 'test-client', version: '0.0.0' },
   });
   await clientSide.send({ jsonrpc: '2.0', method: 'notifications/initialized' } as never);
 
   return {
     init,
+    serverRequests,
     request,
     async listTools() {
       const res = await request('tools/list');

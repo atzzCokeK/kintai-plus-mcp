@@ -12,14 +12,17 @@ import {
   type Task,
 } from '../api/projects.ts';
 import { fetchMyStaff, permissionRole } from '../api/staff.ts';
-import { parseStamps, type Stamp } from '../api/stamps.ts';
+import { parseStamps, STAMP_TYPE_CODES, type Stamp } from '../api/stamps.ts';
 import { parseWorkingRecords, type WorkingRecord } from '../api/working-records.ts';
 import {
   diffDays,
   endOfDay,
   formatCompactDate,
   formatSlashDate,
+  formatSlashDateTime,
   formatStampQuery,
+  JST_OFFSET,
+  type LocalDate,
   startOfDay,
 } from '../time/datetime.ts';
 import {
@@ -27,6 +30,8 @@ import {
   type Capability,
   type KintaiBackend,
   type Profile,
+  type PunchInput,
+  type SaveManhoursInput,
   type StampList,
 } from './types.ts';
 
@@ -190,6 +195,53 @@ export class ApiBackend implements KintaiBackend {
       days.push(...parseManhours(res, options.staffId));
     }
     return days;
+  }
+
+  async punch(input: PunchInput): Promise<{ stampedAt?: Date }> {
+    const client = await this.#getClient();
+    const res = await client.post([COMPANY_ID, 'stamps'], {
+      type: STAMP_TYPE_CODES[input.type],
+      stampedAt: formatSlashDateTime(input.at),
+      timezone: JST_OFFSET,
+      ...(input.telework ? { telework: 1 } : {}),
+    });
+    const [stamp] = parseStamps(res);
+    return stamp ? { stampedAt: stamp.stampedAt } : {};
+  }
+
+  async saveManhours(input: SaveManhoursInput): Promise<void> {
+    const { staffId } = await this.getMyProfile();
+    const client = await this.#getClient();
+    await client.post([COMPANY_ID, 'manhours'], {
+      manhours: [
+        {
+          staff_id: staffId,
+          dates: [
+            {
+              date: formatSlashDate(input.date),
+              projects: input.projects.map((p) => ({
+                project_id: p.projectId,
+                daily_hour_items: p.items.map((i) => ({ task_id: i.taskId, minute: i.minutes })),
+              })),
+            },
+          ],
+        },
+      ],
+    });
+  }
+
+  async deleteManhours(input: {
+    date: LocalDate;
+    projectId: number;
+    taskId?: number;
+  }): Promise<void> {
+    const { staffId } = await this.getMyProfile();
+    const client = await this.#getClient();
+    await client.delete([COMPANY_ID, 'manhours', staffId], {
+      date: formatSlashDate(input.date),
+      project_id: input.projectId,
+      task_id: input.taskId,
+    });
   }
 
   async #fetchProfile(): Promise<Profile> {

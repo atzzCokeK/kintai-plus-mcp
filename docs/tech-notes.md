@@ -67,3 +67,12 @@
 - API が認証エラーを返したら `TokenManager.invalidate()` で保存先を読み直す（別プロセスが更新した場合に追従するため）
 - テスト: `InMemoryTransport.createLinkedPair()` で JSON-RPC を直接送る簡易クライアント（`test/helpers/mcp-client.ts`）。stdio は `node src/cli.ts`（Node 22 の型除去）を実際に起動して確認する
 - `serveStdio` は stdin が閉じると終了する
+
+## 書き込みの確認（T8）
+
+- 書き込みツールは事前チェックの後、書き込みの直前に `ctx.confirm(message)` を呼ぶ。`CONFIRM_WRITES=true` のときだけ効く
+- 仕組み: `confirm` が内部シグナルを投げ → `createMcpServer` の包みが `inputRequired({ inputRequests: { confirm: inputRequired.elicit(...) } })` を返す → クライアントが回答付きで再呼び出し → `inputResponse(ctx.mcpReq.inputResponses, 'confirm')` で承認なら続行、拒否・キャンセルなら `ToolRefusedError`
+- 旧プロトコル（2025 年版）の接続では、SDK の legacy shim（既定で有効）が同じ戻り値を `elicitation/create` に変換して同じハンドラを再実行する。クライアントが elicitation を宣言していなければ `isError` の結果になり、書き込みは行われない
+- 再実行のたびに事前チェック（打刻の矛盾、締め・確定）もやり直される
+- 書き込みツールを増やしたら `test/tools/write-confirm.test.ts` にも足す（一覧のテストが落ちて気づける）
+- 工数の保存は、API の「作成更新」が置き換えか追記か未確認のため、同じ日・同じプロジェクトの既存タスクを合わせて送る（どちらの仕様でも結果が同じになる）
