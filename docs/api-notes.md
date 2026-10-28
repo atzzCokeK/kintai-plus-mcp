@@ -65,4 +65,11 @@
 - エラーコードの一覧と形式（文字列か数値か）
 - DELETE（工数削除）でのトークンと条件の渡し方。実装はクエリに載せている
 - 打刻取得・勤務実績の期間パラメータ名（`start_date` / `end_date` を想定）
-- 従業員一覧の `TotalCount` のキー名と位置（`response` 直下を想定）
+- 従業員一覧の `TotalCount` のキー名と位置（`response` 直下を想定。`total_count` / `totalCount` も読む）
+- 各 API の応答の包み方（`{ stamps: [...] }` か配列か、従業員ごとに包むか）。パーサーはどちらも読む（`src/api/*.ts`）
+- 従業員取得のキー名（camelCase を想定し snake_case も読む）。氏名は `lastName` + `firstName` を想定
+- プロジェクト一覧・タスク一覧の `page` が 0 始まりか（従業員一覧に合わせて 0 始まりと仮定）
+- 工数取得の期間パラメータ名と上限（`start_date` / `end_date`、`yyyy/mm/dd` と仮定。31 日ごとに分割している）
+- 勤務実績の `staff_ids` に指定できる人数の上限（50 人ずつに分けている）
+- 勤務実績の `break_time_results` の形（開始・終了の組、または分数を想定）。時刻項目が「HH:MM」だけの場合（24 時以降を含む）にも対応
+- 参加プロジェクト API（`staff_projects`）の応答（ID の配列か、プロジェクトの配列か）

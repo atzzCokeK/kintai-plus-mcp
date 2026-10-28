@@ -1,4 +1,10 @@
+import type { Alert } from '../api/alerts.ts';
+import type { ManhourDay } from '../api/manhours.ts';
+import type { DateRange } from '../api/paging.ts';
+import type { Project, Task } from '../api/projects.ts';
 import type { Role } from '../api/staff.ts';
+import type { Stamp } from '../api/stamps.ts';
+import type { WorkingRecord } from '../api/working-records.ts';
 
 /**
  * 勤怠の操作を表すバックエンドのインターフェース。
@@ -34,4 +40,23 @@ export interface KintaiBackend {
   readonly kind: 'api';
   readonly capabilities: ReadonlySet<Capability>;
   getMyProfile(): Promise<Profile>;
+  /** 打刻履歴（両端の日を含む）。staffId を省略すると自分 */
+  getStamps(range: DateRange, options?: { staffId?: number }): Promise<StampList>;
+  /** 勤務実績（両端の日を含む）。staffIds を省略すると自分 */
+  getWorkingRecords(range: DateRange, options?: { staffIds?: number[] }): Promise<WorkingRecord[]>;
+  /** 自分のアラート（API では絞り込めない） */
+  getAlerts(): Promise<Alert[]>;
+  /** 企業のプロジェクト一覧 */
+  listProjects(): Promise<{ projects: Project[]; truncated: boolean }>;
+  listTasks(projectId: number): Promise<{ tasks: Task[]; truncated: boolean }>;
+  /** 自分が参加しているプロジェクトの ID */
+  getMyProjectIds(): Promise<number[]>;
+  /** 工数（両端の日を含む）。staffId を省略すると自分 */
+  getManhours(range: DateRange, options?: { staffId?: number }): Promise<ManhourDay[]>;
+}
+
+export interface StampList {
+  stamps: Stamp[];
+  /** API の件数上限に達して取りきれなかった */
+  truncated: boolean;
 }
