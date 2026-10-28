@@ -19,10 +19,6 @@ export interface LoggerOptions {
   write?: (line: string) => void;
 }
 
-export function parseLogLevel(value: string | undefined): LogLevel {
-  return value !== undefined && value in ORDER ? (value as LogLevel) : 'info';
-}
-
 /** ログは stderr にだけ出す（stdout は MCP の通信路）。出す前に必ずトークンを伏せる。 */
 export function createLogger(options: LoggerOptions = {}): Logger {
   const threshold = ORDER[options.level ?? 'info'];

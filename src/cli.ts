@@ -1,5 +1,13 @@
 #!/usr/bin/env node
-import { VERSION } from './version.ts';
+import { createNodeIO } from './cli/io.ts';
+import { runCli } from './cli/main.ts';
 
-// T4 で CLI を実装するまでの仮のエントリーポイント。stdout は MCP の通信路なので stderr に出す。
-process.stderr.write(`kintai-plus-mcp ${VERSION}\n`);
+const io = createNodeIO();
+const code = await runCli(process.argv.slice(2), {
+  io,
+  startServer: async () => {
+    throw new Error('MCP server is not implemented yet (T6)');
+  },
+});
+io.close();
+process.exitCode = code;
