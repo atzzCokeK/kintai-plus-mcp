@@ -5,8 +5,8 @@
 ## 現在の状況
 
 - 最終更新: 2026-10-27
-- 進行中: T5
-- 次にやること: T5 → T6（T6 で `src/cli.ts` の startServer を本物に差し替える）
+- 進行中: T6
+- 次にやること: T6 → T7（T6 で `src/cli.ts` の startServer を本物に差し替える）
 - メモ: GitHub リポジトリ `atzzCokeK/kintai-plus-mcp` は Private。Public 化は v0.1.0 リリース時
 
 ## T1. リポジトリ基盤
@@ -39,9 +39,9 @@
 - [x] `status`: 保存先・有効期限・権限を表示（トークンは表示しない）
 
 ## T5. バックエンドのインターフェースと API 版の実装
-- [ ] `KintaiBackend` インターフェースと capabilities の申告
-- [ ] API 版の実装（T2 のクライアントを使う）
-- [ ] 権限（企業管理者／一般管理者／従業員）の判定
+- [x] `KintaiBackend` インターフェースと capabilities の申告
+- [x] API 版の実装（T2 のクライアントを使う）。骨格とプロフィールまで。各操作は T7〜T9 のツールと一緒に `KintaiBackend` に足していく
+- [x] 権限（企業管理者／一般管理者／従業員）の判定
 
 ## T6. MCP サーバーの骨組み
 - [ ] `serveStdio` での起動（旧プロトコルのクライアントにも対応）
