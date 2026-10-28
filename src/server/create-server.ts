@@ -6,6 +6,7 @@ import {
 } from '@modelcontextprotocol/server';
 import * as z from 'zod/v4';
 import { KintaiApiError } from '../api/errors.ts';
+import { type PromptDefinition, selectPrompts } from '../prompts/index.ts';
 import { annotationsFor, type ToolContext, type ToolDefinition } from '../tools/registry.ts';
 import { errorResult, successResult, ToolRefusedError } from '../tools/result.ts';
 import { PACKAGE_NAME, VERSION } from '../version.ts';
@@ -34,11 +35,30 @@ export function createMcpServer(
   ctx: ToolContext,
   tools: readonly ToolDefinition[],
   hooks: ServerHooks = {},
+  prompts: readonly PromptDefinition[] = [],
 ): McpServer {
+  const visiblePrompts = selectPrompts(prompts, new Set(tools.map((t) => t.name)));
   const server = new McpServer(
     { name: PACKAGE_NAME, version: VERSION },
-    { capabilities: { tools: {} }, instructions: SERVER_INSTRUCTIONS },
+    {
+      capabilities: { tools: {}, ...(visiblePrompts.length > 0 ? { prompts: {} } : {}) },
+      instructions: SERVER_INSTRUCTIONS,
+    },
   );
+  for (const prompt of visiblePrompts) {
+    server.registerPrompt(
+      prompt.name,
+      { title: prompt.title, description: prompt.description, argsSchema: prompt.argsSchema },
+      (args: unknown) => ({
+        messages: [
+          {
+            role: 'user' as const,
+            content: { type: 'text' as const, text: prompt.build(args as never, ctx.now()) },
+          },
+        ],
+      }),
+    );
+  }
   for (const tool of tools) {
     server.registerTool(
       tool.name,

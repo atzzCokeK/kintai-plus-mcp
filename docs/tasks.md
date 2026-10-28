@@ -5,13 +5,13 @@
 ## 現在の状況
 
 - 最終更新: 2026-10-27
-- v0.1.0 の実装は T1〜T12 まで完了（テスト 335 件、lint・型チェック通過）。ブランチ `claude/loop-engineering-tvx3ba`
-- 残っているのはユーザー作業: 実環境での確認、npm の初回公開と Trusted Publisher 設定、MCP Registry への公開、Public 化前の docs/ の見直し（手順は [release.md](./release.md)）
-- 次にやること:
+- v0.1.0 の実装は T1〜T12 まで完了。加えて「v0.1 以降の候補」のうち API だけでできる 3 つ（打刻漏れチェック、残業リスク検出、定型プロンプト）も実装済み（ツール 19、プロンプト 4、テスト 359 件。lint は警告でも失敗する設定）。ブランチ `claude/loop-engineering-tvx3ba`
+- 残っているのはユーザーの判断・作業が要るもの:
   1. 実環境で `pnpm e2e --record` を実行し、[api-notes.md](./api-notes.md) の「未確認事項」を確かめる（応答の形・パラメータ名・page の始まり・DELETE の渡し方など）。違っていたらパーサーとフィクスチャを直す
-  2. 「v0.1 以降の候補」から、API だけで実現できるもの（打刻漏れチェック、残業リスク検出、定型プロンプト）
-- 途中で決めたこと（ユーザー未確認）: ADR 0007（期限不明のトークンは初回に再発行）、所定休日の時間外は 1 日 8 時間超で数える（design.md に追記）、自分の従業員情報は保存済みの staffId で取る
-- メモ: GitHub リポジトリ `atzzCokeK/kintai-plus-mcp` は Private。Public 化は v0.1.0 リリース時
+  2. npm の初回公開と Trusted Publisher の設定、MCP Registry への公開、Public 化前の docs/ の見直し（手順は [release.md](./release.md)）
+  3. ブラウザモード（申請・スケジュール）: ログインの扱い・規約の解釈・Playwright の扱いなど設計判断が必要（ADR 0001）。着手前に相談
+- 途中で決めたこと（ユーザー未確認）: ADR 0007（期限不明のトークンは初回に再発行）、所定休日の時間外は 1 日 8 時間超で数える（design.md に追記）、自分の従業員情報は保存済みの staffId で取る、打刻漏れチェックの判定（夜勤は 16 時間以内、12 時間超・インターバル 11 時間未満を警告）、残業リスクの予測方法（ペース × 残りの平日、しきい値 45 時間）
+- メモ: GitHub リポジトリ `atzzCokeK/kintai-plus-mcp` は Private。Public 化は v0.1.0 リリース時。リリース時のバージョンは changeset により 0.1.0 になる
 
 ## T1. リポジトリ基盤
 - [x] package.json（`bin: kintai-plus-mcp`、Node 22+、ESM）、tsconfig、tsdown、Vitest、Biome
@@ -86,7 +86,7 @@
 - [ ] Public 化の前に docs/ の内容を見直す（**ユーザー作業**）
 
 ## v0.1 以降の候補
-- 打刻漏れチェック `check_attendance_issues`
-- 残業リスク検出 `find_overtime_risks`（管理者向け、月末の着地予測）
-- 定型プロンプト（MCP Prompts）
-- ブラウザモード（申請・スケジュール、API を使えない人向け）
+- [x] 打刻漏れチェック `check_attendance_issues`（夜勤は 16 時間以内なら 1 つの勤務として扱う。範囲の前日の打刻も見る）
+- [x] 残業リスク検出 `find_overtime_risks`（管理者向け、月末の着地予測。ここまでの出勤日あたりのペース × 残りの平日。祝日は考慮しない）
+- [x] 定型プロンプト（MCP Prompts）: `end_of_day` / `log_manhours` / `monthly_review` / `team_status`。使うツールが公開されているときだけ出す
+- [ ] ブラウザモード（申請・スケジュール、API を使えない人向け）— 設計判断が必要なため未着手（要相談）

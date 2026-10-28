@@ -63,8 +63,20 @@ async function call(name: string, args: Record<string, unknown> = {}) {
 
 describe('フィクスチャでの通しの動作', () => {
   it('一般管理者にはすべてのツールを公開する', async () => {
-    expect(toolNames).toHaveLength(17);
+    expect(toolNames).toHaveLength(19);
     expect((await client.listTools()).map((t) => t.name)).toEqual(toolNames);
+  });
+
+  it('定型プロンプトも公開する', async () => {
+    const res = (await client.request('prompts/list')).result as {
+      prompts: Array<{ name: string }>;
+    };
+    expect(res.prompts.map((p) => p.name)).toEqual([
+      'end_of_day',
+      'log_manhours',
+      'monthly_review',
+      'team_status',
+    ]);
   });
 
   it('get_my_profile', async () => {
@@ -101,6 +113,12 @@ describe('フィクスチャでの通しの動作', () => {
       estimatedOvertimeMinutes: 270,
     });
     expect(summary.text).toContain('目安');
+  });
+
+  it('check_attendance_issues: 法定休日の出勤を情報として出す', async () => {
+    const res = await call('check_attendance_issues', { from: '2026-10-01', to: '2026-10-04' });
+    expect(res.isError).toBe(false);
+    expect(res.text).toContain('holiday_work');
   });
 
   it('get_alerts', async () => {
