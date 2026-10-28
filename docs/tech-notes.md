@@ -58,3 +58,12 @@
 - パイプ入力では、readline が質問の前に届いた行を捨ててしまうため、読んだ行をキューに溜めて順に渡す（`src/cli/io.ts`）
 - `login` は「自分の従業員情報の取得で疎通確認 → 再発行で有効期限を確定（ADR 0007）→ 保存」。再発行に失敗しても疎通できたトークンは期限不明で保存する
 - 環境設定: `KINTAI_PLUS_REFRESH_DAYS`（1〜30、既定 15）、`KINTAI_PLUS_AUTO_REFRESH`、`KINTAI_PLUS_READ_ONLY`、`CONFIRM_WRITES`、`KINTAI_PLUS_INCLUDE_LOCATION`、`KINTAI_PLUS_LOG_LEVEL`、`KINTAI_PLUS_MIN_INTERVAL_MS`（100〜60000、既定 300）。`src/config.ts`
+
+## MCP サーバー（T6）
+
+- ツールは `src/tools/registry.ts` の `defineTool` で定義し、`src/tools/index.ts` の `ALL_TOOLS` に並べる。必要な capability・対象（everyone/admin）・read/write を持たせ、`selectTools` で公開するものを決める
+- 返り値は JSON をテキスト 1 つで返す（`successResult`）。失敗は `isError: true` と `Hint:` 付きの本文（`errorResult`）。`ToolInputError`（入力の誤り）、`ToolRefusedError`（安全策で止めた。回避方法を hint に書く）を使い分ける
+- 起動時に `getMyProfile` で権限を確認する。未ログイン・通信失敗でも起動し、従業員向けツールだけを出す
+- API が認証エラーを返したら `TokenManager.invalidate()` で保存先を読み直す（別プロセスが更新した場合に追従するため）
+- テスト: `InMemoryTransport.createLinkedPair()` で JSON-RPC を直接送る簡易クライアント（`test/helpers/mcp-client.ts`）。stdio は `node src/cli.ts`（Node 22 の型除去）を実際に起動して確認する
+- `serveStdio` は stdin が閉じると終了する

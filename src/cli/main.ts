@@ -1,12 +1,13 @@
 import { parseArgs } from 'node:util';
 import { type Connection, isValidCompanyId, parseApiHost } from '../api/endpoint.ts';
 import { KintaiApiError } from '../api/errors.ts';
-import { fetchMyStaff, permissionRole, type Role, type StaffSummary } from '../api/staff.ts';
+import { fetchMyStaff, permissionRole, type StaffSummary } from '../api/staff.ts';
 import { reissueToken } from '../api/token.ts';
 import { NotLoggedInError, TokenExpiredError } from '../credentials/token-manager.ts';
 import type { Credentials } from '../credentials/types.ts';
 import { createRuntime, type Runtime, type RuntimeOptions } from '../runtime.ts';
 import { formatIsoDateTime } from '../time/datetime.ts';
+import { ROLE_LABEL } from '../tools/labels.ts';
 import { VERSION } from '../version.ts';
 
 export interface CliIO {
@@ -36,12 +37,6 @@ const USAGE = `kintai-plus-mcp ${VERSION}
   kintai-plus-mcp status     保存先・有効期限・権限を表示する
   kintai-plus-mcp --version
 `;
-
-const ROLE_LABEL: Record<Role, string> = {
-  company_admin: '企業管理者',
-  admin: '一般管理者',
-  employee: '従業員',
-};
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 

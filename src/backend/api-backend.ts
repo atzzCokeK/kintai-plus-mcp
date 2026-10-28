@@ -6,11 +6,12 @@ import { ALL_CAPABILITIES, type Capability, type KintaiBackend, type Profile } f
 export class ApiBackend implements KintaiBackend {
   readonly kind = 'api' as const;
   readonly capabilities: ReadonlySet<Capability> = new Set(ALL_CAPABILITIES);
-  readonly #client: KintaiApiClient;
+  readonly #getClient: () => Promise<KintaiApiClient>;
   #profile: Promise<Profile> | undefined;
 
-  constructor(client: KintaiApiClient) {
-    this.#client = client;
+  /** クライアントを直接、または必要になったときに作る関数で渡す（未ログインでもサーバーを起動できるように） */
+  constructor(client: KintaiApiClient | (() => Promise<KintaiApiClient>)) {
+    this.#getClient = typeof client === 'function' ? client : async () => client;
   }
 
   getMyProfile(): Promise<Profile> {
@@ -22,7 +23,7 @@ export class ApiBackend implements KintaiBackend {
   }
 
   async #fetchProfile(): Promise<Profile> {
-    const staff = await fetchMyStaff(this.#client);
+    const staff = await fetchMyStaff(await this.#getClient());
     const profile: Profile = { staffId: staff.staffId, role: permissionRole(staff.permissionType) };
     if (staff.name !== undefined) profile.name = staff.name;
     if (staff.staffNum !== undefined) profile.staffNum = staff.staffNum;
