@@ -5,8 +5,8 @@
 ## 現在の状況
 
 - 最終更新: 2026-10-27
-- 進行中: T10
-- 次にやること: T10 → T11
+- 進行中: T11
+- 次にやること: T11 → T12
 - メモ: GitHub リポジトリ `atzzCokeK/kintai-plus-mcp` は Private。Public 化は v0.1.0 リリース時
 
 ## T1. リポジトリ基盤
@@ -69,7 +69,7 @@
 - [x] `get_project_members`
 
 ## T10. 集計
-- [ ] `summarize_working_hours`（実働合計、出勤日数、休日出勤日数、法定時間外の目安）
+- [x] `summarize_working_hours`（実働合計、出勤日数、休日出勤日数、法定時間外の目安）
 
 ## T11. テストデータと手動 E2E
 - [ ] 匿名化済みフィクスチャ
