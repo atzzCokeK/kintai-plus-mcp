@@ -22,6 +22,15 @@ export interface KintaiApiClientOptions {
   /** 再試行までの待ち時間（既定 1 秒） */
   retryDelayMs?: number;
   logger?: Logger;
+  /** 応答を受け取るたびに呼ぶ（手元の E2E で応答を記録する用）。URL・本文のトークンは伏せてある */
+  onResponse?: (response: RecordedResponse) => void;
+}
+
+export interface RecordedResponse {
+  method: string;
+  url: string;
+  status: number;
+  body: string;
 }
 
 export interface RequestOptions {
@@ -44,6 +53,7 @@ export class KintaiApiClient {
   readonly #timeoutMs: number;
   readonly #retryDelayMs: number;
   readonly #logger: Logger;
+  readonly #onResponse: ((response: RecordedResponse) => void) | undefined;
 
   constructor(options: KintaiApiClientOptions) {
     this.connection = options.connection;
@@ -54,6 +64,7 @@ export class KintaiApiClient {
     this.#timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
     this.#retryDelayMs = options.retryDelayMs ?? DEFAULT_RETRY_DELAY_MS;
     this.#logger = options.logger ?? silentLogger;
+    this.#onResponse = options.onResponse;
   }
 
   get<T = unknown>(segments: readonly PathSegment[], query?: Query, options?: RequestOptions) {
@@ -120,6 +131,12 @@ export class KintaiApiClient {
     }
     const text = await response.text();
     this.#logger.debug(`${label} -> HTTP ${response.status} (${Date.now() - started}ms)`);
+    this.#onResponse?.({
+      method: String(init.method),
+      url: redactUrl(url),
+      status: response.status,
+      body: redactSecrets(text, [token]),
+    });
     try {
       return parseEnvelope(response.status, text, [token]);
     } catch (error) {

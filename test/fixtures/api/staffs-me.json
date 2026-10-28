@@ -1,0 +1,17 @@
+{
+  "success": true,
+  "response": {
+    "staffId": 1001,
+    "lastName": "架空",
+    "firstName": "花子",
+    "lastNameKana": "カクウ",
+    "firstNameKana": "ハナコ",
+    "email": "hanako@example.com",
+    "staffNum": "E0001",
+    "organization": { "organizationId": 10, "name": "開発部" },
+    "subgroups": [],
+    "employmentCategory": { "id": 1, "name": "正社員" },
+    "permissionGroup": { "permissionType": 2, "name": "一般管理者" },
+    "managedOrganizations": [{ "organizationId": 10, "name": "開発部" }]
+  }
+}

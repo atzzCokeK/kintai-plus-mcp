@@ -34,7 +34,9 @@
     "typecheck": "tsc --noEmit",
     "lint": "biome check .",
     "format": "biome check --write .",
-    "changeset": "changeset"
+    "changeset": "changeset",
+    "e2e": "node e2e/smoke.ts",
+    "anonymize": "node e2e/anonymize.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/server": "^2.4.0",

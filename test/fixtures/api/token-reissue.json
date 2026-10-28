@@ -1,0 +1,9 @@
+{
+  "success": true,
+  "response": {
+    "login_company_code": "example-co",
+    "staff_id": 1001,
+    "token": "fixture-reissued-token-0001",
+    "expired_at": "2026/11/28 09:00:00"
+  }
+}

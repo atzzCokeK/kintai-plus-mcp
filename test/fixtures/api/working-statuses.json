@@ -1,0 +1,9 @@
+{
+  "success": true,
+  "response": {
+    "working_statuses": [
+      { "staff_id": 1002, "date": "2026-10-27", "working_statuses": [{ "name": "出張" }] },
+      { "staff_id": 1003, "date": "2026-10-27", "working_statuses": [] }
+    ]
+  }
+}

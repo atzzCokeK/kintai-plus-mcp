@@ -151,3 +151,24 @@ describe('KintaiApiClient', () => {
     expect(calls).toHaveLength(1);
   });
 });
+
+describe('onResponse（E2E での記録用）', () => {
+  it('トークンを伏せた URL と本文を渡す', async () => {
+    const seen: Array<{ method: string; url: string; status: number; body: string }> = [];
+    const client = new KintaiApiClient({
+      connection: { host: 'atnd.ak4.jp', companyId: 'acme' },
+      getToken: async () => TOKEN,
+      throttle: new RequestThrottle({ minIntervalMs: 0 }),
+      fetch: async () =>
+        json({ success: true, response: { token: 'new-token-abcdef12', staff_id: 1 } }),
+      onResponse: (r) => seen.push(r),
+    });
+    await client.get([COMPANY_ID, 'staffs']);
+    expect(seen).toHaveLength(1);
+    expect(seen[0]?.method).toBe('GET');
+    expect(seen[0]?.status).toBe(200);
+    expect(seen[0]?.url).not.toContain(TOKEN);
+    expect(seen[0]?.body).not.toContain('new-token-abcdef12');
+    expect(seen[0]?.body).toContain('staff_id');
+  });
+});

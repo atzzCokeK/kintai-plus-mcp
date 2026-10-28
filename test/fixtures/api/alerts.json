@@ -1,0 +1,10 @@
+{
+  "success": true,
+  "response": {
+    "alerts": [
+      { "month": "2026/10", "date": "2026/10/04", "alert_type": 6 },
+      { "month": "2026/10", "date": "2026/10/01", "alert_type": 9 },
+      { "month": "2026/09", "date": "2026/09/30", "alert_type": 1 }
+    ]
+  }
+}

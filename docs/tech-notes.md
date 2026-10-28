@@ -76,3 +76,11 @@
 - 再実行のたびに事前チェック（打刻の矛盾、締め・確定）もやり直される
 - 書き込みツールを増やしたら `test/tools/write-confirm.test.ts` にも足す（一覧のテストが落ちて気づける）
 - 工数の保存は、API の「作成更新」が置き換えか追記か未確認のため、同じ日・同じプロジェクトの既存タスクを合わせて送る（どちらの仕様でも結果が同じになる）
+
+## テストデータと手動 E2E（T11）
+
+- `test/fixtures/api/*.json` は架空の応答（api-notes の仮定に沿った形）。`test/helpers/fixture-api.ts` がこれを返す偽 API で、`test/e2e/fixtures.test.ts` がサーバー全体を通しで動かす
+- 手動 E2E: `pnpm e2e`（= `node e2e/smoke.ts`）。保存済みの認証情報で読み取り系 API を一通り呼び、件数と成否だけを stderr に出す。書き込み API は呼ばない（自動更新による再発行は起こりうる）
+- `pnpm e2e --record` で応答を `e2e/.local/responses/` に保存する（gitignore 済み。トークンは伏せるが個人情報は残る）
+- フィクスチャ化: `pnpm anonymize <file> [out]`（= `node e2e/anonymize.ts`）で氏名・カナ・社員番号・メール・名称・コメント・位置情報・IP・トークン・企業 ID を架空の値にしてから、目で確認して置く
+- e2e/ は tsconfig の対象（型チェックされる）だが、Vitest の対象外・npm パッケージにも含めない

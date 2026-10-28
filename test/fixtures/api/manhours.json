@@ -1,0 +1,35 @@
+{
+  "success": true,
+  "response": {
+    "manhours": [
+      {
+        "staff_id": 1001,
+        "dates": [
+          {
+            "date": "2026/10/01",
+            "comment": "設計レビュー",
+            "closed_at": null,
+            "fixed_at": null,
+            "projects": [
+              {
+                "project_id": 501,
+                "daily_hour_items": [
+                  { "task_id": 9001, "minute": 240 },
+                  { "task_id": 9002, "minute": 210 }
+                ]
+              },
+              { "project_id": 502, "daily_hour_items": [{ "task_id": 9101, "minute": 60 }] }
+            ]
+          },
+          {
+            "date": "2026/10/02",
+            "comment": null,
+            "closed_at": null,
+            "fixed_at": null,
+            "projects": []
+          }
+        ]
+      }
+    ]
+  }
+}
