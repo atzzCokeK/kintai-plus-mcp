@@ -34,3 +34,11 @@
 
 - Node 22 以上、pnpm、TypeScript 7、Vitest 5、tsdown、Biome 2
 - CLI アプリなので型定義（.d.ts）の生成は不要
+
+## リポジトリ設定の決めごと（T1）
+
+- ソースの相対 import は `.ts` 拡張子付きで書く（`allowImportingTsExtensions` + `noEmit`。ビルドは tsdown がバンドルする）
+- バージョンは `src/version.ts` が package.json を JSON import して公開する。tsdown が値だけインライン化する
+- Biome は Markdown を対象外にしている（2.6 は Markdown も整形し、docs の見た目が変わるため）
+- `changeset init` は対話式で、非 TTY では止まる。`.changeset/config.json` は手で書いた（changelog は `@changesets/changelog-github`、access は public）
+- `changeset status` はローカルに `main` ブランチがないと失敗する（CI では fetch-depth に注意）
