@@ -49,3 +49,15 @@ describe('ApiBackend', () => {
     expect((await new ApiBackend(client).getMyProfile()).role).toBe('employee');
   });
 });
+
+describe('ApiBackend の自分の staffId', () => {
+  it('保存済みの staffId があれば /staffs/{staffId} で自分を取る', async () => {
+    const { client, calls } = fakeClient(() => ({
+      staffId: 7,
+      permissionGroup: { permissionType: 2 },
+    }));
+    const backend = new ApiBackend(client, { knownStaffId: async () => 7 });
+    expect((await backend.getMyProfile()).role).toBe('admin');
+    expect(calls[0]?.url.pathname).toBe('/api/cooperation/acme/staffs/7');
+  });
+});

@@ -45,13 +45,26 @@ function num(v: unknown): number | undefined {
 
 /**
  * 従業員取得 API の 1 人分を読む。応答の形が一次情報で確認できていないため、
- * camelCase / snake_case、配列や `{ staffs: [...] }` で包まれた形も受け付ける。
+ * camelCase / snake_case、配列や `{ staffs: [...] }` で包まれた形も受け付ける（包まれていれば先頭の人）。
  */
 export function parseStaff(value: unknown): StaffSummary | undefined {
-  const raw = unwrap(value);
-  if (!raw) return undefined;
+  return parseStaffList(value)[0];
+}
+
+/** 従業員の一覧として読む（1 人分の応答なら 1 件の配列） */
+export function parseStaffList(value: unknown): StaffSummary[] {
+  if (Array.isArray(value)) return value.flatMap((v) => (isRec(v) ? toStaff(v) : []));
+  if (!isRec(value)) return [];
+  if (value.staffId === undefined && value.staff_id === undefined) {
+    for (const key of ['staffs', 'staff']) if (key in value) return parseStaffList(value[key]);
+    return [];
+  }
+  return toStaff(value);
+}
+
+function toStaff(raw: Rec): StaffSummary[] {
   const staffId = num(pick(raw, 'staffId', 'staff_id'));
-  if (staffId === undefined) return undefined;
+  if (staffId === undefined) return [];
 
   const last = str(pick(raw, 'lastName', 'last_name', 'familyName', 'family_name'));
   const first = str(pick(raw, 'firstName', 'first_name', 'givenName', 'given_name'));
@@ -79,28 +92,40 @@ export function parseStaff(value: unknown): StaffSummary | undefined {
   if (staffNum !== undefined) out.staffNum = staffNum;
   if (organizationName !== undefined) out.organizationName = organizationName;
   if (permissionType !== undefined) out.permissionType = permissionType;
-  return out;
+  return [out];
 }
 
-function unwrap(value: unknown): Rec | undefined {
-  if (Array.isArray(value)) return unwrap(value[0]);
-  if (!isRec(value)) return undefined;
-  for (const key of ['staffs', 'staff']) {
-    if (key in value && value.staffId === undefined && value.staff_id === undefined) {
-      return unwrap(value[key]);
-    }
-  }
-  return value;
-}
-
-/** 自分の従業員情報（`GET /{companyId}/staffs`） */
-export async function fetchMyStaff(client: KintaiApiClient, token?: string): Promise<StaffSummary> {
-  const res = await client.get([COMPANY_ID, 'staffs'], undefined, token ? { token } : undefined);
-  const staff = parseStaff(res);
+/**
+ * 自分の従業員情報。自分の staffId がわかっていれば `/staffs/{staffId}` で取る。
+ * 一覧が返った場合は staffId が一致する人を選び、決められなければエラーにする（他人を自分と取り違えて権限を誤らないため）。
+ */
+export async function fetchMyStaff(
+  client: KintaiApiClient,
+  options: { staffId?: number | undefined; token?: string } = {},
+): Promise<StaffSummary> {
+  const path =
+    options.staffId === undefined
+      ? [COMPANY_ID, 'staffs']
+      : [COMPANY_ID, 'staffs', options.staffId];
+  const res = await client.get(
+    path,
+    undefined,
+    options.token ? { token: options.token } : undefined,
+  );
+  const list = parseStaffList(res);
+  const staff =
+    options.staffId === undefined
+      ? list.length === 1
+        ? list[0]
+        : undefined
+      : list.find((s) => s.staffId === options.staffId);
   if (!staff) {
     throw new KintaiApiError({
       kind: 'invalid_response',
-      message: 'Staff response had no staff ID',
+      message:
+        list.length > 1
+          ? 'Staff response contained several staff; could not tell which one is you'
+          : 'Staff response had no matching staff ID',
     });
   }
   return staff;

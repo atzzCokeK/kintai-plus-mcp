@@ -1,3 +1,9 @@
+import {
+  getProjectMembersTool,
+  getTeamStampsTool,
+  getWorkingStatusesTool,
+  listStaffTool,
+} from './admin.ts';
 import { getAlertsTool } from './alerts.ts';
 import { deleteManhoursTool, saveManhoursTool } from './manhours-write.ts';
 import { getMyProfileTool } from './profile.ts';
@@ -21,4 +27,9 @@ export const ALL_TOOLS: readonly ToolDefinition[] = [
   getManhoursTool,
   saveManhoursTool,
   deleteManhoursTool,
+  // 管理者向け
+  listStaffTool,
+  getTeamStampsTool,
+  getWorkingStatusesTool,
+  getProjectMembersTool,
 ];
