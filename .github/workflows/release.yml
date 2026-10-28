@@ -1,0 +1,80 @@
+name: Release
+
+# main への push で:
+# 1. 未リリースの changeset があれば「バージョンを上げる PR」を作る（changesets/action）
+# 2. package.json のバージョンが npm に未公開なら、Trusted Publishing（OIDC）で provenance 付きで公開し、
+#    タグを打ち、MCP Registry にも公開する
+# npm のトークンは置かない。初回だけは手作業が必要（docs/release.md）。
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # タグとバージョン PR
+      pull-requests: write # バージョン PR
+      id-token: write # npm Trusted Publishing / provenance と MCP Registry の OIDC
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
+
+      - name: Create version PR
+        uses: changesets/action@v1
+        with:
+          version: pnpm version-packages
+          title: "chore: release"
+          commit: "chore: release"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check whether this version is published
+        id: check
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          if [ "$VERSION" = "0.0.0" ] || npm view "kintai-plus-mcp@$VERSION" version >/dev/null 2>&1; then
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish to npm (Trusted Publishing + provenance)
+        if: steps.check.outputs.publish == 'true'
+        run: |
+          npm install -g npm@latest
+          npm publish --provenance --access public
+
+      - name: Tag release
+        if: steps.check.outputs.publish == 'true'
+        run: |
+          git tag "v${{ steps.check.outputs.version }}"
+          git push origin "v${{ steps.check.outputs.version }}"
+
+      - name: Publish to MCP Registry
+        if: steps.check.outputs.publish == 'true'
+        run: |
+          curl -fsSL "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_linux_amd64.tar.gz" | tar xz mcp-publisher
+          ./mcp-publisher login github-oidc
+          ./mcp-publisher publish

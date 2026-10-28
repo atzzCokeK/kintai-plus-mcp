@@ -2,6 +2,7 @@
   "name": "kintai-plus-mcp",
   "version": "0.0.0",
   "description": "Unofficial MCP server for マネーフォワード クラウド勤怠Plus (formerly AKASHI) public API",
+  "mcpName": "io.github.atzzCokeK/kintai-plus-mcp",
   "keywords": [
     "mcp",
     "model-context-protocol",
@@ -23,6 +24,10 @@
   "files": [
     "dist"
   ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "engines": {
     "node": ">=22"
   },
@@ -36,7 +41,8 @@
     "format": "biome check --write .",
     "changeset": "changeset",
     "e2e": "node e2e/smoke.ts",
-    "anonymize": "node e2e/anonymize.ts"
+    "anonymize": "node e2e/anonymize.ts",
+    "version-packages": "changeset version && node scripts/sync-server-json.ts && biome format --write server.json"
   },
   "dependencies": {
     "@modelcontextprotocol/server": "^2.4.0",

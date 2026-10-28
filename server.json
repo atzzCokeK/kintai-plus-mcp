@@ -1,0 +1,56 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.atzzCokeK/kintai-plus-mcp",
+  "title": "Kintai Plus (unofficial)",
+  "description": "Unofficial MCP server for Money Forward Cloud Kintai Plus (AKASHI): punches, records, man-hours",
+  "repository": {
+    "url": "https://github.com/atzzCokeK/kintai-plus-mcp",
+    "source": "github"
+  },
+  "version": "0.0.0",
+  "packages": [
+    {
+      "registryType": "npm",
+      "registryBaseUrl": "https://registry.npmjs.org",
+      "identifier": "kintai-plus-mcp",
+      "version": "0.0.0",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "KINTAI_PLUS_TOKEN",
+          "description": "API token (only for first-time import; `npx kintai-plus-mcp login` is recommended instead)",
+          "isRequired": false,
+          "isSecret": true
+        },
+        {
+          "name": "KINTAI_PLUS_COMPANY_ID",
+          "description": "Login company ID (ログイン企業ID), used with KINTAI_PLUS_TOKEN",
+          "isRequired": false
+        },
+        {
+          "name": "KINTAI_PLUS_HOST",
+          "description": "API host (the domain of the URL after you sign in)",
+          "isRequired": false,
+          "choices": ["atnd.ak4.jp", "atnd-awj.ak4.jp"],
+          "default": "atnd.ak4.jp"
+        },
+        {
+          "name": "KINTAI_PLUS_READ_ONLY",
+          "description": "Expose read-only tools only",
+          "isRequired": false,
+          "format": "boolean",
+          "default": "false"
+        },
+        {
+          "name": "CONFIRM_WRITES",
+          "description": "Ask for confirmation (elicitation) before punches and man-hour changes",
+          "isRequired": false,
+          "format": "boolean",
+          "default": "false"
+        }
+      ]
+    }
+  ]
+}

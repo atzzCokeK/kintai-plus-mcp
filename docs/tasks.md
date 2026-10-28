@@ -5,8 +5,12 @@
 ## 現在の状況
 
 - 最終更新: 2026-10-27
-- 進行中: T12
-- 次にやること: T12（README・リリース用ワークフロー・server.json）。実環境での E2E（`pnpm e2e --record`）で api-notes の「未確認事項」を確かめる
+- v0.1.0 の実装は T1〜T12 まで完了（テスト 335 件、lint・型チェック通過）。ブランチ `claude/loop-engineering-tvx3ba`
+- 残っているのはユーザー作業: 実環境での確認、npm の初回公開と Trusted Publisher 設定、MCP Registry への公開、Public 化前の docs/ の見直し（手順は [release.md](./release.md)）
+- 次にやること:
+  1. 実環境で `pnpm e2e --record` を実行し、[api-notes.md](./api-notes.md) の「未確認事項」を確かめる（応答の形・パラメータ名・page の始まり・DELETE の渡し方など）。違っていたらパーサーとフィクスチャを直す
+  2. 「v0.1 以降の候補」から、API だけで実現できるもの（打刻漏れチェック、残業リスク検出、定型プロンプト）
+- 途中で決めたこと（ユーザー未確認）: ADR 0007（期限不明のトークンは初回に再発行）、所定休日の時間外は 1 日 8 時間超で数える（design.md に追記）、自分の従業員情報は保存済みの staffId で取る
 - メモ: GitHub リポジトリ `atzzCokeK/kintai-plus-mcp` は Private。Public 化は v0.1.0 リリース時
 
 ## T1. リポジトリ基盤
@@ -76,10 +80,10 @@
 - [x] 実環境向けの手動 E2E スクリプト（読み取り系のみ、CI では実行しない）
 
 ## T12. リリース
-- [ ] README の完成（セットアップ、各クライアントの設定例、管理者向けの API 有効化手順、ツール一覧、制約）
-- [ ] リリース用ワークフロー（Changesets + Trusted Publishing + provenance）
-- [ ] `server.json` と MCP Registry への公開
-- [ ] Public 化の前に docs/ の内容を見直す
+- [x] README の完成（セットアップ、各クライアントの設定例、管理者向けの API 有効化手順、ツール一覧、制約）
+- [x] リリース用ワークフロー（Changesets + Trusted Publishing + provenance）。初回の手作業は docs/release.md
+- [ ] `server.json` と MCP Registry への公開（server.json とワークフローは作成済み。実際の公開はリリース時。**ユーザー作業**）
+- [ ] Public 化の前に docs/ の内容を見直す（**ユーザー作業**）
 
 ## v0.1 以降の候補
 - 打刻漏れチェック `check_attendance_issues`
