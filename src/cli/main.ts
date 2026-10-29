@@ -188,8 +188,13 @@ async function logout(deps: CliDeps): Promise<number> {
           'トークン自体はまだ有効です。不要ならマイページで無効化してください。\n'
       : `保存された認証情報はありません: ${runtime.store.location}\n`,
   );
-  if (deps.runtimeOptions?.env?.KINTAI_PLUS_TOKEN ?? process.env.KINTAI_PLUS_TOKEN) {
-    io.stderr('注意: KINTAI_PLUS_TOKEN が設定されているため、次回の起動時に再び取り込まれます。\n');
+  const env = deps.runtimeOptions?.env ?? process.env;
+  if (env.KINTAI_PLUS_TOKEN) {
+    io.stderr(
+      runtime.config.persistEnvToken
+        ? '注意: KINTAI_PLUS_TOKEN が設定されているため、次回の起動時に再び保存されます。再発行すると、環境変数の値は使えなくなることがあります。\n'
+        : '注意: KINTAI_PLUS_TOKEN が設定されています。保存した認証情報が無くても、次回の起動はこの環境変数のトークンを使います。保存しません。再発行もしません。\n',
+    );
   }
   return 0;
 }
@@ -198,21 +203,35 @@ async function status(deps: CliDeps): Promise<number> {
   const { io } = deps;
   const runtime = await createRuntime(deps.runtimeOptions);
   const now = deps.now?.() ?? new Date();
-  const lines = [`保存先: ${runtime.store.location}`];
-  const credentials = await runtime.store.load();
+  const stored = await runtime.store.load();
+  const fromEnv = !stored && runtime.usingEnvToken;
+  const credentials = stored ?? (fromEnv ? await runtime.tokens.getCredentials() : undefined);
   if (!credentials) {
     io.stdout(
-      `${lines.join('\n')}\n未ログインです。\`npx kintai-plus-mcp login\` で登録してください。\n`,
+      `保存先: ${runtime.store.location}\n未ログインです。\`npx kintai-plus-mcp login\` で登録してください。\n`,
     );
     return 1;
   }
-  lines.push(
+  const lines = [
+    fromEnv
+      ? '保存先: なし（環境変数のトークンを、このプロセスの中だけで使います）'
+      : `保存先: ${runtime.store.location}`,
     `接続先: ${credentials.host}`,
     `ログイン企業ID: ${credentials.companyId}`,
     `従業員ID: ${credentials.staffId ?? '不明'}`,
-    `有効期限: ${formatExpiry(credentials.expiresAt, now)}`,
-    `自動更新: ${runtime.config.autoRefresh ? `有効（残り ${runtime.config.refreshBeforeDays} 日を切ったら再発行）` : '無効'}`,
-  );
+    `有効期限: ${
+      fromEnv
+        ? '不明（環境変数のトークンは自動では再発行しません）'
+        : formatExpiry(credentials.expiresAt, now)
+    }`,
+    `自動更新: ${
+      fromEnv
+        ? '無効（環境変数のトークンは再発行しません。自動更新が必要なら login で登録してください）'
+        : runtime.config.autoRefresh
+          ? `有効（残り ${runtime.config.refreshBeforeDays} 日を切ったら再発行）`
+          : '無効'
+    }`,
+  ];
 
   let code = 0;
   try {

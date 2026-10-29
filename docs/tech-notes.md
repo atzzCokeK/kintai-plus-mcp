@@ -48,7 +48,7 @@
 ## 認証情報の保存（T3）
 
 - キーチェーンのサービス名 `kintai-plus-mcp`、アカウント名 `default`。値は認証情報の JSON（`src/credentials/types.ts` の形）
-- 環境変数: `KINTAI_PLUS_CREDENTIAL_STORE`（auto / keychain / file）、`KINTAI_PLUS_CREDENTIALS_FILE`（指定するとファイル保存）、初回取り込み用に `KINTAI_PLUS_TOKEN` / `KINTAI_PLUS_COMPANY_ID` / `KINTAI_PLUS_HOST`（省略時 atnd.ak4.jp）
+- 環境変数: `KINTAI_PLUS_CREDENTIAL_STORE`（auto / keychain / file）、`KINTAI_PLUS_CREDENTIALS_FILE`（指定するとファイル保存）、`KINTAI_PLUS_TOKEN` / `KINTAI_PLUS_COMPANY_ID` / `KINTAI_PLUS_HOST`（省略時 atnd.ak4.jp）。トークンは保存先が空のときプロセス内だけで使う。保存と期限不明時の再発行は `KINTAI_PLUS_PERSIST_ENV_TOKEN=true` のときだけ（ADR 0007）
 - ファイル保存は一時ファイルに書いてから rename で置き換える。読むときに権限が緩ければ 600 に直して警告する
 
 ## CLI（T4）
@@ -57,7 +57,7 @@
 - プロンプトは stderr に出す。トークン入力中は readline のエコーを止める
 - パイプ入力では、readline が質問の前に届いた行を捨ててしまうため、読んだ行をキューに溜めて順に渡す（`src/cli/io.ts`）
 - `login` は「自分の従業員情報の取得で疎通確認 → 再発行で有効期限を確定（ADR 0007）→ 保存」。再発行に失敗しても疎通できたトークンは期限不明で保存する。管理者の `GET /staffs` は一覧なので、保存済みの staffId が無く一覧が 1 人に決まらないときは `GET /stamps` の `staff_id` で自分を決める（2026-10-29 確認）
-- 環境設定: `KINTAI_PLUS_REFRESH_DAYS`（1〜30、既定 15）、`KINTAI_PLUS_AUTO_REFRESH`、`KINTAI_PLUS_READ_ONLY`、`CONFIRM_WRITES`、`KINTAI_PLUS_INCLUDE_LOCATION`、`KINTAI_PLUS_LOG_LEVEL`、`KINTAI_PLUS_MIN_INTERVAL_MS`（100〜60000、既定 300）。`src/config.ts`
+- 環境設定: `KINTAI_PLUS_REFRESH_DAYS`（1〜30、既定 15）、`KINTAI_PLUS_AUTO_REFRESH`、`KINTAI_PLUS_PERSIST_ENV_TOKEN`（既定 false）、`KINTAI_PLUS_READ_ONLY`、`CONFIRM_WRITES`、`KINTAI_PLUS_INCLUDE_LOCATION`、`KINTAI_PLUS_LOG_LEVEL`、`KINTAI_PLUS_MIN_INTERVAL_MS`（100〜60000、既定 300）。`src/config.ts`
 
 ## MCP サーバー（T6）
 

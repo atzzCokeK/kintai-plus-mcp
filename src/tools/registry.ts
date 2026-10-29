@@ -33,9 +33,9 @@ export interface ToolDefinition<S extends z.ZodObject = z.ZodObject> {
   handler(input: z.infer<S>, ctx: ToolContext): Promise<unknown>;
 }
 
-/** 型推論のためのヘルパー */
+/** 型推論のためのヘルパー。未知の引数は捨てずに拒否する */
 export function defineTool<S extends z.ZodObject>(tool: ToolDefinition<S>): ToolDefinition<S> {
-  return tool;
+  return { ...tool, inputSchema: tool.inputSchema.strict() as S };
 }
 
 export interface SelectOptions {

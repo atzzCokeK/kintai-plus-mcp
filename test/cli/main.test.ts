@@ -279,6 +279,28 @@ describe('runCli', () => {
       expect(h.out.join('')).toMatch(/削除/);
     });
 
+    it('環境変数のトークンは保存せず再発行せず、status で使えると示す', async () => {
+      const h = harness({
+        env: { KINTAI_PLUS_TOKEN: TOKEN, KINTAI_PLUS_COMPANY_ID: 'acme' },
+      });
+      expect(await runCli(['status'], h.deps)).toBe(0);
+      expect(h.requests.some((r) => r.includes('reissue'))).toBe(false);
+      await expect(readFile(credentialsFile, 'utf8')).rejects.toThrow();
+      expect(h.out.join('')).toMatch(/環境変数/);
+      expect(h.out.join('')).toMatch(/再発行しません/);
+      expect(allOutput(h)).not.toContain(TOKEN);
+    });
+
+    it('環境変数がある logout は、次回もそのトークンを使うが保存はしないと注意する', async () => {
+      const h = harness({
+        env: { KINTAI_PLUS_TOKEN: TOKEN, KINTAI_PLUS_COMPANY_ID: 'acme' },
+      });
+      expect(await runCli(['logout'], h.deps)).toBe(0);
+      expect(h.err.join('')).toMatch(/環境変数/);
+      expect(h.err.join('')).toMatch(/保存しません/);
+      expect(allOutput(h)).not.toContain(TOKEN);
+    });
+
     it('何もなくても成功し、その旨を表示する', async () => {
       const h = harness();
       expect(await runCli(['logout'], h.deps)).toBe(0);

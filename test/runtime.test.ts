@@ -15,7 +15,36 @@ afterEach(async () => {
 });
 
 describe('createRuntime', () => {
-  it('環境変数のトークンを取り込み、初回に再発行してから API を呼ぶ', async () => {
+  it('環境変数のトークンは保存せず再発行せず、その値で API を呼ぶ', async () => {
+    const requests: string[] = [];
+    const fetchImpl: typeof fetch = async (input, init) => {
+      const url = new URL(String(input));
+      requests.push(`${init?.method} ${url.pathname}`);
+      expect(url.searchParams.get('token')).toBe('env-token-0000');
+      return Response.json({ success: true, response: { staffId: 9 } });
+    };
+    const credentialsFile = join(dir, 'credentials.json');
+    const logs: string[] = [];
+    const runtime = await createRuntime({
+      env: {
+        KINTAI_PLUS_CREDENTIALS_FILE: credentialsFile,
+        KINTAI_PLUS_TOKEN: 'env-token-0000',
+        KINTAI_PLUS_COMPANY_ID: 'acme',
+        KINTAI_PLUS_MIN_INTERVAL_MS: '100',
+      },
+      fetch: fetchImpl,
+      now: () => new Date('2026-10-27T00:00:00Z'),
+      writeLog: (s) => logs.push(s),
+    });
+    expect(runtime.usingEnvToken).toBe(true);
+    const client = await runtime.getClient();
+    await client.get([COMPANY_ID, 'staffs']);
+    expect(requests).toEqual(['GET /api/cooperation/acme/staffs']);
+    await expect(readFile(credentialsFile, 'utf8')).rejects.toThrow();
+    expect(logs.join('')).not.toContain('env-token-0000');
+  });
+
+  it('KINTAI_PLUS_PERSIST_ENV_TOKEN=true のときだけ保存し、期限不明なら再発行する', async () => {
     const requests: string[] = [];
     const fetchImpl: typeof fetch = async (input, init) => {
       const url = new URL(String(input));
@@ -37,13 +66,14 @@ describe('createRuntime', () => {
         KINTAI_PLUS_CREDENTIALS_FILE: credentialsFile,
         KINTAI_PLUS_TOKEN: 'env-token-0000',
         KINTAI_PLUS_COMPANY_ID: 'acme',
+        KINTAI_PLUS_PERSIST_ENV_TOKEN: 'true',
         KINTAI_PLUS_MIN_INTERVAL_MS: '100',
       },
       fetch: fetchImpl,
       now: () => new Date('2026-10-27T00:00:00Z'),
       writeLog: (s) => logs.push(s),
     });
-    expect(runtime.store.kind).toBe('file');
+    expect(runtime.usingEnvToken).toBe(false);
     const client = await runtime.getClient();
     await client.get([COMPANY_ID, 'staffs']);
     expect(requests).toEqual([

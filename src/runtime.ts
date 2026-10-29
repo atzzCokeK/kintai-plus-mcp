@@ -7,7 +7,7 @@ import { type Config, loadConfig } from './config.ts';
 import { defaultCredentialsPath } from './credentials/file-store.ts';
 import type { KeychainCredentialStore } from './credentials/keychain-store.ts';
 import { acquireFileLock } from './credentials/lock.ts';
-import { importFromEnv, selectCredentialStore } from './credentials/select.ts';
+import { EnvFallbackStore, importFromEnv, selectCredentialStore } from './credentials/select.ts';
 import { TokenManager } from './credentials/token-manager.ts';
 import {
   type CredentialStore,
@@ -37,6 +37,8 @@ export interface Runtime {
   getClient(): Promise<KintaiApiClient>;
   /** 任意の接続先・トークンで API クライアントを作る（login の疎通確認用） */
   createClient(connection: Connection, getToken: () => Promise<string>): KintaiApiClient;
+  /** 環境変数のトークンを、保存も再発行もせずに使っている */
+  usingEnvToken: boolean;
 }
 
 /** 設定・ログ・保存先・トークン管理・API クライアントを組み立てる。 */
@@ -66,10 +68,30 @@ export async function createRuntime(options: RuntimeOptions = {}): Promise<Runti
     });
 
   const lockPath = join(dirname(defaultCredentialsPath(env)), 'refresh.lock');
+  let tokenStore: CredentialStore = store;
+  let usingEnvToken = false;
+  try {
+    const before = await store.load();
+    const imported = await importFromEnv(store, env, options.now?.() ?? new Date(), {
+      persist: config.persistEnvToken,
+    });
+    if (imported) logger.addSecret(imported.token);
+    if (!before && imported && !config.persistEnvToken) {
+      usingEnvToken = true;
+      tokenStore = new EnvFallbackStore(store, imported);
+    }
+  } catch (error) {
+    // 壊れた保存データがあっても login で上書きできるよう、ここでは止めない
+    if (!(error instanceof CredentialsFormatError)) throw error;
+    logger.warn(error.message);
+  }
+
   const tokens = new TokenManager({
-    store,
+    store: tokenStore,
     refreshBeforeDays: config.refreshBeforeDays,
     autoRefresh: config.autoRefresh,
+    // 環境変数のトークンは再発行しない。再発行すると、環境変数に残した値が使えなくなる
+    reissueUnknownExpiry: !usingEnvToken,
     warn: (m) => logger.warn(m),
     acquireLock: () => acquireFileLock(lockPath),
     reissue: async (credentials: Credentials) => {
@@ -85,20 +107,12 @@ export async function createRuntime(options: RuntimeOptions = {}): Promise<Runti
     ...(options.now ? { now: options.now } : {}),
   });
 
-  try {
-    const imported = await importFromEnv(store, env, options.now?.() ?? new Date());
-    if (imported) logger.addSecret(imported.token);
-  } catch (error) {
-    // 壊れた保存データがあっても login で上書きできるよう、ここでは止めない
-    if (!(error instanceof CredentialsFormatError)) throw error;
-    logger.warn(error.message);
-  }
-
   return {
     config,
     logger,
     store,
     tokens,
+    usingEnvToken,
     createClient,
     async getClient() {
       const credentials = await tokens.getCredentials();

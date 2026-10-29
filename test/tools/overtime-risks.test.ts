@@ -89,6 +89,7 @@ describe('find_overtime_risks', () => {
     await expect(findOvertimeRisksTool.handler({ month: '2026-11' }, ctx)).rejects.toThrow(
       ToolInputError,
     );
+    await expect(findOvertimeRisksTool.handler({ month: '2026-13' }, ctx)).rejects.toThrow(/01-12/);
   });
 
   it('管理者向け', () => {

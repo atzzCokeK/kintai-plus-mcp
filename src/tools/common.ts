@@ -8,6 +8,15 @@ export const dateSchema = z
   .regex(/^\d{4}-\d{2}-\d{2}$/, 'Use YYYY-MM-DD')
   .describe('Date in YYYY-MM-DD (Japan time)');
 
+/** 月。01–12 以外（2026-13 など）は拒否する */
+export const monthSchema = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'Use YYYY-MM (month 01-12)');
+
+export function assertMonth(month: string): void {
+  if (!monthSchema.safeParse(month).success) {
+    throw new ToolInputError(`Invalid month: ${month} (use YYYY-MM, month 01-12)`);
+  }
+}
+
 export interface RangeInput {
   from?: string | undefined;
   to?: string | undefined;

@@ -34,6 +34,19 @@ describe('errorResult', () => {
     expect(text(r)).toMatch(pattern);
   });
 
+  it('「従業員IDは必ず入力してください」には、ID が無いとは限らないと案内する', () => {
+    const r = errorResult(
+      new KintaiApiError({
+        kind: 'invalid_request',
+        message: 'Kintai Plus API error (HTTP 400): 従業員IDは必ず入力してください',
+        apiErrors: [{ code: 'EXXX', message: '従業員IDは必ず入力してください' }],
+      }),
+    );
+    expect(text(r)).toContain('従業員IDは必ず入力してください');
+    expect(text(r)).toMatch(/list_staff/);
+    expect(text(r)).toMatch(/does not always mean/i);
+  });
+
   it('想定外のエラーでもトークンらしき値は伏せる', () => {
     const r = errorResult(new Error('boom https://x/?token=abcdef123456'));
     expect(text(r)).not.toContain('abcdef123456');

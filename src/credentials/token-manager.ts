@@ -44,6 +44,11 @@ export interface TokenManagerOptions {
   /** 有効期限の残りがこの日数以下になったら再発行する（既定 15） */
   refreshBeforeDays?: number;
   autoRefresh?: boolean;
+  /**
+   * 有効期限が無いトークンを初回に再発行するか（既定 true）。
+   * 環境変数のトークンは false にして、渡した値を無効化しない。
+   */
+  reissueUnknownExpiry?: boolean;
   now?: () => Date;
   warn?: (message: string) => void;
   /** 保存先を読み直す間隔（既定 60 秒） */
@@ -66,6 +71,7 @@ export class TokenManager {
     this.#o = {
       refreshBeforeDays: 15,
       autoRefresh: true,
+      reissueUnknownExpiry: true,
       now: () => new Date(),
       warn: () => {},
       cacheTtlMs: 60_000,
@@ -104,7 +110,7 @@ export class TokenManager {
   }
 
   #needsRefresh(credentials: Credentials): boolean {
-    if (credentials.expiresAt === undefined) return true;
+    if (credentials.expiresAt === undefined) return this.#o.reissueUnknownExpiry;
     const remaining = Date.parse(credentials.expiresAt) - this.#o.now().getTime();
     return remaining <= this.#o.refreshBeforeDays * DAY_MS;
   }

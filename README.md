@@ -8,7 +8,7 @@
 「出勤して」「今月の残業はどれくらい？」「昨日の工数を設計 2 時間・実装 5 時間で入れて」のように話しかけるだけで、打刻・勤務実績の確認・工数入力ができます。
 
 - 手元の PC で動くローカルの stdio サーバーです（トークンを第三者のサーバーに預けません）
-- トークンは OS のキーチェーンに保存し、有効期限が近づくと自動で再発行します
+- トークンは OS のキーチェーンに保存し、有効期限が近づくと自動で再発行します（環境変数で渡したトークンは、明示しない限り保存も再発行もしません）
 - 打刻の位置情報・IP アドレスは、既定では AI に渡しません
 
 公開 API の仕様（公式）: [マネーフォワード クラウド勤怠Plus 公開API 仕様](https://akashi.zendesk.com/hc/ja/articles/115000475854)
@@ -26,7 +26,7 @@
 | `get_working_records` | 勤務実績（労働区分・時刻・実働・休憩。31 日ごとに自動で分割） |
 | `summarize_working_hours` | 実働合計・出勤日数・休日出勤日数・法定時間外の目安（月ごとの内訳つき） |
 | `get_alerts` | アラート（打刻忘れ、遅刻、36協定 など） |
-| `check_attendance_issues` | 打刻漏れチェック（退勤・出勤・休憩戻の打刻忘れ、12 時間超の日、勤務間インターバル 11 時間未満、休日出勤） |
+| `check_attendance_issues` | 打刻漏れチェック（退勤・出勤・休憩戻の打刻忘れ、12 時間超の日、勤務間インターバル 11 時間未満、休日出勤）。勤務実績にその時刻がある日は打刻漏れにしない。休憩が不明な経過時間は、12 時間超を情報にとどめる |
 | `list_projects` / `list_tasks` / `get_my_projects` | プロジェクトとタスク |
 | `get_manhours` | 工数（プロジェクト名・タスク名つき） |
 | `save_manhours` 【書き込み】 / `delete_manhours` 【書き込み】 | 工数の登録・更新・削除 |
@@ -63,9 +63,9 @@
 
 **管理者が行うこと**（一度だけ）: 従業員設定 > 対象の従業員の「変更」 > 利用機能設定 で、「公開API利用可否」を「利用する」にします。
 
-**本人が行うこと**: マイページ > APIトークン で発行します。トークンの有効期限は 1 ヶ月と 1 日です（このツールが自動で再発行します）。
+**本人が行うこと**: マイページ > APIトークン で発行します。トークンの有効期限は 1 ヶ月と 1 日です。`login` で登録したトークンは、登録時と、期限が近づいたときに再発行します。
 
-> このツール専用のトークンを発行してください。初回の利用時と期限が近づいたときに再発行するため、同じトークンを他のツールで使っていると、そちらが使えなくなることがあります。
+> `login` で登録するトークンは、このツール専用にしてください。再発行すると、それまで使っていたトークンは使えなくなります。環境変数で渡すだけの場合は、既定では再発行しません（下の「環境変数でトークンを渡す」）。
 
 ### 2. ログイン
 
@@ -169,20 +169,25 @@ args = ["-y", "kintai-plus-mcp"]
 | `KINTAI_PLUS_INCLUDE_LOCATION` | `false` | `true` で打刻の位置情報・IP を返す |
 | `KINTAI_PLUS_REFRESH_DAYS` | `15` | 有効期限の残りがこの日数を切ったら再発行する（1〜30） |
 | `KINTAI_PLUS_AUTO_REFRESH` | `true` | `false` で自動の再発行を止める |
+| `KINTAI_PLUS_PERSIST_ENV_TOKEN` | `false` | `true` で、環境変数のトークンを保存し、期限が不明なら再発行する。環境変数の値は使えなくなることがある |
 | `KINTAI_PLUS_CREDENTIAL_STORE` | `auto` | 保存先: `auto`（キーチェーン → ファイル）/ `keychain` / `file` |
 | `KINTAI_PLUS_CREDENTIALS_FILE` | `~/.config/kintai-plus-mcp/credentials.json` | ファイル保存のパス（指定するとファイル保存になる） |
 | `KINTAI_PLUS_LOG_LEVEL` | `info` | `debug` / `info` / `warn` / `error` / `silent`（ログは stderr のみ） |
 | `KINTAI_PLUS_MIN_INTERVAL_MS` | `300` | API リクエストの最小間隔（ミリ秒） |
 
-### キーチェーンのない環境（サーバー上のボットなど）
+### 環境変数でトークンを渡す（ボットなど）
 
-キーチェーンが使えない環境では、本人だけが読み書きできるファイル（パーミッション 600）に保存します。`login` を対話で行えない場合は、環境変数で初回だけ取り込めます。
+`login` が使えないときは、環境変数だけで起動できます。**既定では保存せず、再発行 API も呼びません。**
 
 ```sh
 KINTAI_PLUS_TOKEN=... KINTAI_PLUS_COMPANY_ID=... KINTAI_PLUS_HOST=atnd.ak4.jp npx kintai-plus-mcp
 ```
 
-保存先が空のときだけ取り込み、以降は保存先の値（自動で再発行されたもの）を使います。
+再発行 API は、渡したトークンを無効にして新しいトークンを返します。環境変数の値を自動で再発行すると、その値を共有している他のプロセスが突然使えなくなります。このサーバーは、明示しない限りそれをしません。
+
+自動更新（期限が近づいたら再発行して保存）が必要なときは、このサーバー専用のトークンを `npx kintai-plus-mcp login` で登録してください。キーチェーンが使えない環境では、本人だけが読み書きできるファイル（パーミッション 600）に保存します。
+
+環境変数のトークンを保存して再発行する動作は、`KINTAI_PLUS_PERSIST_ENV_TOKEN=true` を付けたときだけです。有効にすると、環境変数に書いたトークンは使えなくなることがあります。保存先にすでに認証情報があるときは、環境変数より保存先を優先します。
 
 ## 制約
 
@@ -227,7 +232,7 @@ This project is not affiliated with, endorsed by, or sponsored by Money Forward,
 - Punch in/out, check today's status, view punch history, working records, alerts, and man-hours, and record man-hours
 - Admin tools (staff list, team punches, working statuses, project members) are shown only to admins
 - Runs locally over stdio: `npx kintai-plus-mcp`. Register your token first with `npx kintai-plus-mcp login`
-- The token is stored in the OS keychain (or a 600-permission file) and reissued automatically before it expires
+- The token is stored in the OS keychain (or a 600-permission file) and reissued automatically before it expires. A token passed only via `KINTAI_PLUS_TOKEN` is not stored or reissued unless `KINTAI_PLUS_PERSIST_ENV_TOKEN=true` (reissue invalidates the previous token)
 - Location and IP address of punches are not sent to the AI by default
 - Not supported: requests (申請) and schedules, because the public API does not provide them. Punches are recorded at the time the server receives them and cannot be edited via the API
 - Requires Node.js 22+ and an API token issued from your Kintai Plus "My Page" (an admin must enable "公開API利用可否" for you)
