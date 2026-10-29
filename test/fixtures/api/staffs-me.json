@@ -8,10 +8,12 @@
     "firstNameKana": "ハナコ",
     "email": "hanako@example.com",
     "staffNum": "E0001",
-    "organization": { "organizationId": 10, "name": "開発部" },
-    "subgroups": [],
+    "organization": { "organizationId": 10, "Name": "開発部" },
+    "Subgroups": [],
     "employmentCategory": { "id": 1, "name": "正社員" },
-    "permissionGroup": { "permissionType": 2, "name": "一般管理者" },
-    "managedOrganizations": [{ "organizationId": 10, "name": "開発部" }]
+    "permissionGroup": { "permissionType": 2, "Name": "一般管理者" },
+    "managedOrganizations": [{ "organizationId": 10, "Name": "開発部" }],
+    "Tag": null,
+    "Remarks": ""
   }
 }

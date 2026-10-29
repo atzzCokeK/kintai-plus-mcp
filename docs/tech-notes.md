@@ -56,7 +56,7 @@
 - `src/cli/main.ts` の `runCli(argv, deps)` が本体。入出力・API・サーバー起動は差し替え可能（テストは偽の fetch と一時ディレクトリのファイル保存で通しで確認）
 - プロンプトは stderr に出す。トークン入力中は readline のエコーを止める
 - パイプ入力では、readline が質問の前に届いた行を捨ててしまうため、読んだ行をキューに溜めて順に渡す（`src/cli/io.ts`）
-- `login` は「自分の従業員情報の取得で疎通確認 → 再発行で有効期限を確定（ADR 0007）→ 保存」。再発行に失敗しても疎通できたトークンは期限不明で保存する
+- `login` は「自分の従業員情報の取得で疎通確認 → 再発行で有効期限を確定（ADR 0007）→ 保存」。再発行に失敗しても疎通できたトークンは期限不明で保存する。管理者の `GET /staffs` は一覧なので、保存済みの staffId が無く一覧が 1 人に決まらないときは `GET /stamps` の `staff_id` で自分を決める（2026-10-29 確認）
 - 環境設定: `KINTAI_PLUS_REFRESH_DAYS`（1〜30、既定 15）、`KINTAI_PLUS_AUTO_REFRESH`、`KINTAI_PLUS_READ_ONLY`、`CONFIRM_WRITES`、`KINTAI_PLUS_INCLUDE_LOCATION`、`KINTAI_PLUS_LOG_LEVEL`、`KINTAI_PLUS_MIN_INTERVAL_MS`（100〜60000、既定 300）。`src/config.ts`
 
 ## MCP サーバー（T6）

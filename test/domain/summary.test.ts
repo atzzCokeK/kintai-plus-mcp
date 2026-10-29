@@ -29,7 +29,22 @@ describe('summarizeWorkingHours', () => {
       estimatedOvertimeMinutes: 420,
       overDailyLimitMinutes: 180,
       legalHolidayMinutes: 240,
+      breakTimeUnknown: false,
     });
+  });
+
+  it('休憩が不明な経過時間でも集計し、不明フラグを立てる', () => {
+    const s = summarizeWorkingHours([
+      {
+        date: '2026-10-01',
+        dayCategory: 'workday',
+        actualWorkingMinutes: 600,
+        workingMinutesAreGross: true,
+      },
+    ]);
+    expect(s.totalWorkingMinutes).toBe(600);
+    expect(s.overDailyLimitMinutes).toBe(120);
+    expect(s.breakTimeUnknown).toBe(true);
   });
 
   it('記録がなければ 0', () => {

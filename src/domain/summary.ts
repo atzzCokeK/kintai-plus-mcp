@@ -20,7 +20,13 @@ export interface WorkingHoursSummary {
   overDailyLimitMinutes: number;
   /** 法定休日の労働時間（全時間） */
   legalHolidayMinutes: number;
+  /** 休憩を除いた実働が無く、開始〜終了の経過（休憩を含む）で数えた日がある */
+  breakTimeUnknown: boolean;
 }
+
+/** ツールの注意書きに足す。実働が経過時間のときに使う。 */
+export const UNKNOWN_BREAK_NOTE =
+  '勤務実績 API は実働時間と休憩を返さないため、実働は開始時刻から終了時刻までの経過（休憩を含む）の目安です。休憩時間は不明です。';
 
 /**
  * 勤務実績から集計する（ADR 0006）。法定時間外は「目安」:
@@ -39,10 +45,12 @@ export function summarizeWorkingHours(records: readonly WorkingRecord[]): Workin
     estimatedOvertimeMinutes: 0,
     overDailyLimitMinutes: 0,
     legalHolidayMinutes: 0,
+    breakTimeUnknown: false,
   };
   for (const record of records) {
     const minutes = Math.max(0, record.actualWorkingMinutes ?? 0);
     if (minutes === 0) continue;
+    if (record.workingMinutesAreGross) s.breakTimeUnknown = true;
     s.workDays++;
     s.totalWorkingMinutes += minutes;
     if (record.dayCategory === 'legal_holiday') {

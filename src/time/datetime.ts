@@ -18,6 +18,8 @@ const LOCAL_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
 const API_DATE = /^(\d{4})([/-]?)(\d{2})\2(\d{2})$/;
 const API_DATETIME = /^(\d{4})[/-](\d{2})[/-](\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?$/;
 const ISO_WITH_ZONE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:\d{2})$/;
+/** 仕様の `+09:00` のほか、実応答の `+9.00`（時が 1 桁、区切りが `.`）も受ける */
+const OFFSET_SUFFIX = /([+-])(\d{1,2})[.:](\d{2})$/;
 
 interface Parts {
   year: number;
@@ -166,15 +168,24 @@ export function formatIsoDateTime(date: Date): string {
 
 // ---- API から受け取る形式 ----
 
+/** `+9.00` や `+09:00` を `+09:00` に揃える。タイムゾーンが無ければそのまま返す。 */
+function normalizeOffset(text: string): string {
+  return text.replace(OFFSET_SUFFIX, (_, sign: string, hour: string, minute: string) => {
+    return `${sign}${hour.padStart(2, '0')}:${minute}`;
+  });
+}
+
 /** yyyy/mm/dd HH:MM:SS（日本時間）やタイムゾーン付き ISO 8601 を読む。読めなければ undefined。 */
 export function parseApiDateTime(value: string | null | undefined): Date | undefined {
   if (!value) return undefined;
-  const text = value.trim();
+  const text = normalizeOffset(value.trim());
   if (ISO_WITH_ZONE.test(text)) {
     const d = new Date(text);
     return Number.isNaN(d.getTime()) ? undefined : d;
   }
-  const m = API_DATETIME.exec(text);
+  const offset = /([+-]\d{2}:\d{2})$/.exec(text);
+  const wall = offset ? text.slice(0, offset.index).trim() : text;
+  const m = API_DATETIME.exec(wall);
   if (!m) return undefined;
   const p: Parts = {
     year: Number(m[1]),
@@ -187,7 +198,12 @@ export function parseApiDateTime(value: string | null | undefined): Date | undef
   if (!isValidYmd(p.year, p.month, p.day) || p.hour > 23 || p.minute > 59 || p.second > 59) {
     return undefined;
   }
-  return fromJst(p);
+  if (!offset) return fromJst(p);
+  const sign = offset[1]?.startsWith('-') ? -1 : 1;
+  const hours = Number(offset[1]?.slice(1, 3));
+  const minutes = Number(offset[1]?.slice(4, 6));
+  const offsetMs = sign * (hours * 60 + minutes) * 60_000;
+  return new Date(Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute, p.second) - offsetMs);
 }
 
 /** yyyy/mm/dd・yyyy-mm-dd・yyyymmdd を LocalDate にする。読めなければ undefined。 */

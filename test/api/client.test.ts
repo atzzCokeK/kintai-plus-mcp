@@ -100,7 +100,8 @@ describe('KintaiApiClient', () => {
       json({ success: false, errors: [{ code: 'E1', message: `bad token ${TOKEN}` }] }, 400),
     ]);
     const err = await rejection(client.get([COMPANY_ID, 'staffs']));
-    expect(err.kind).toBe('invalid_request');
+    // メッセージに token を含むので、4xx でも認証エラーに分類する
+    expect(err.kind).toBe('auth');
     expect(err.message).not.toContain(TOKEN);
     expect(logs.join('')).not.toContain(TOKEN);
     expect(logs.join('')).toContain('/api/cooperation/acme/staffs');

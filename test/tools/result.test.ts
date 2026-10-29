@@ -20,6 +20,7 @@ describe('errorResult', () => {
     [new NotLoggedInError(), /login/],
     [new TokenExpiredError(), /マイページ/],
     [new KintaiApiError({ kind: 'auth', message: 'x' }), /login/],
+    [new KintaiApiError({ kind: 'unknown_company', message: 'x' }), /company ID/i],
     [new KintaiApiError({ kind: 'forbidden', message: 'x' }), /permission/i],
     [new KintaiApiError({ kind: 'not_found', message: 'x' }), /ID/],
     [new KintaiApiError({ kind: 'invalid_request', message: 'bad date' }), /bad date/],

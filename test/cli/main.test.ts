@@ -147,6 +147,40 @@ describe('runCli', () => {
       expect(saved.host).toBe('atnd.ak4.jp');
     });
 
+    it('無効なトークン（404 ERR300002）は再発行を案内する', async () => {
+      const h = harness({
+        answers: ['acme', '', TOKEN],
+        fetch: async () =>
+          Response.json(
+            {
+              success: false,
+              errors: [{ code: 'ERR300002', message: '指定されたトークンは無効です。' }],
+            },
+            { status: 404 },
+          ),
+      });
+      expect(await runCli(['login'], h.deps)).toBe(1);
+      expect(h.err.join('')).toMatch(/再発行/);
+      expect(allOutput(h)).not.toContain(TOKEN);
+    });
+
+    it('存在しない企業 ID（404 ERR300001）は企業 ID の確認を案内する', async () => {
+      const h = harness({
+        answers: ['acme', '', TOKEN],
+        fetch: async () =>
+          Response.json(
+            {
+              success: false,
+              errors: [{ code: 'ERR300001', message: '指定された企業は存在しません。' }],
+            },
+            { status: 404 },
+          ),
+      });
+      expect(await runCli(['login'], h.deps)).toBe(1);
+      expect(h.err.join('')).toMatch(/ログイン企業ID/);
+      expect(h.err.join('')).not.toMatch(/再発行/);
+    });
+
     it('疎通確認で認証エラーなら保存せず、確認すべき点を案内する', async () => {
       const h = harness({
         answers: ['acme', '', TOKEN],

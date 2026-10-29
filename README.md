@@ -11,7 +11,9 @@
 - トークンは OS のキーチェーンに保存し、有効期限が近づくと自動で再発行します
 - 打刻の位置情報・IP アドレスは、既定では AI に渡しません
 
-> v0.1 は開発中です。API の応答の形の一部は実環境で未確認です（[docs/api-notes.md](./docs/api-notes.md) の「未確認事項」）。
+公開 API の仕様（公式）: [マネーフォワード クラウド勤怠Plus 公開API 仕様](https://akashi.zendesk.com/hc/ja/articles/115000475854)
+
+> v0.1 は開発中です。主要な応答の形は実環境で確認済みです。まだ未確認の点は [docs/api-notes.md](./docs/api-notes.md) の「未確認事項」にあります。
 
 ## できること
 
@@ -229,4 +231,5 @@ This project is not affiliated with, endorsed by, or sponsored by Money Forward,
 - Location and IP address of punches are not sent to the AI by default
 - Not supported: requests (申請) and schedules, because the public API does not provide them. Punches are recorded at the time the server receives them and cannot be edited via the API
 - Requires Node.js 22+ and an API token issued from your Kintai Plus "My Page" (an admin must enable "公開API利用可否" for you)
+- Official API reference (Japanese): https://akashi.zendesk.com/hc/ja/articles/115000475854
 - License: MIT

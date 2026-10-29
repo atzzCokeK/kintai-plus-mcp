@@ -37,6 +37,7 @@ describe('parseProjects', () => {
 
 describe('readTotalCount', () => {
   it('TotalCount / total_count / totalCount を読む', () => {
+    expect(readTotalCount({ Count: 20, TotalCount: 40, login_company_code: 'acme' })).toBe(40);
     expect(readTotalCount({ TotalCount: 45 })).toBe(45);
     expect(readTotalCount({ total_count: '3' })).toBe(3);
     expect(readTotalCount({ totalCount: 0 })).toBe(0);

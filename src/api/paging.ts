@@ -1,4 +1,5 @@
 import { addDays, addMonths, diffDays, type LocalDate } from '../time/datetime.ts';
+import { API_CODE, hasErrorCode } from './errors.ts';
 
 /**
  * API の制約（期間・件数・ページ）に合わせて呼び出しを分けるためのヘルパー。
@@ -110,7 +111,16 @@ export async function paginate<T>(
   let totalCount: number | undefined;
 
   for (let i = 0; i < maxPages; i++) {
-    const page = await fetchPage(firstPage + i);
+    let page: Page<T>;
+    try {
+      page = await fetchPage(firstPage + i);
+    } catch (error) {
+      // 範囲外の page は空配列ではなく 404 ERR300602。ページサイズで割り切れると次のページがこれになる。
+      if (hasErrorCode(error, API_CODE.pageOutOfRange)) {
+        return { items, totalCount, truncated: false };
+      }
+      throw error;
+    }
     totalCount = page.totalCount ?? totalCount;
     items.push(...page.items);
 

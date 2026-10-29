@@ -158,6 +158,12 @@ async function login(args: readonly string[], deps: CliDeps): Promise<number> {
 
 function loginFailureMessage(error: unknown): string {
   if (error instanceof KintaiApiError) {
+    if (error.kind === 'unknown_company') {
+      return (
+        '指定された企業は存在しません。ログイン企業ID と、接続先がログイン後の URL のドメイン' +
+        '（atnd.ak4.jp または atnd-awj.ak4.jp）かを確認してください。'
+      );
+    }
     if (error.kind === 'auth' || error.kind === 'forbidden' || error.kind === 'not_found') {
       return (
         `接続を確認できませんでした（${error.kind}）。次の点を確認してください:\n` +

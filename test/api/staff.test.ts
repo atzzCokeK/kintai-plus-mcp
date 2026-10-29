@@ -22,6 +22,23 @@ describe('parseStaff', () => {
     });
   });
 
+  it('所属名は organization.Name を読む', () => {
+    const staff = parseStaff({
+      staffId: 101,
+      lastName: '架空',
+      firstName: '花子',
+      organization: { Name: '開発部' },
+      permissionGroup: { permissionType: 2, Name: '一般管理者' },
+      Subgroups: [],
+    });
+    expect(staff).toMatchObject({
+      staffId: 101,
+      name: '架空 花子',
+      organizationName: '開発部',
+      permissionType: 2,
+    });
+  });
+
   it('snake_case や配列・ラップされた応答も読む', () => {
     const inner = { staff_id: 5, last_name: '佐藤', first_name: '太郎', permission_type: 3 };
     expect(parseStaff([inner])).toMatchObject({ staffId: 5, name: '佐藤 太郎', permissionType: 3 });
@@ -72,7 +89,57 @@ describe('fetchMyStaff', () => {
     expect(me.staffId).toBe(7);
   });
 
-  it('staffId がわからず、複数人が返ったら自分を決められないのでエラー（誤って管理者扱いしない）', async () => {
+  it('一覧が複数人のときは GET /stamps の staff_id で自分を決める', async () => {
+    const { fetchMyStaff } = await import('../../src/api/staff.ts');
+    const { fakeClient } = await import('../helpers/fake-client.ts');
+    const { client, calls } = fakeClient((_method, url) => {
+      if (url.pathname.endsWith('/stamps')) {
+        return { login_company_code: 'acme', staff_id: '7', count: 0, stamps: [] };
+      }
+      if (url.pathname.endsWith('/staffs/7')) {
+        return {
+          staffId: 7,
+          lastName: '架空',
+          firstName: '花子',
+          organization: { Name: '開発部' },
+          permissionGroup: { permissionType: 1, Name: '企業管理者' },
+        };
+      }
+      return {
+        login_company_code: 'acme',
+        Count: 2,
+        TotalCount: 2,
+        staffs: [
+          {
+            staffId: 1,
+            lastName: '仮名',
+            firstName: '次郎',
+            permissionGroup: { permissionType: 3 },
+          },
+          {
+            staffId: 2,
+            lastName: '見本',
+            firstName: '三郎',
+            permissionGroup: { permissionType: 3 },
+          },
+        ],
+      };
+    });
+    const me = await fetchMyStaff(client);
+    expect(me).toMatchObject({
+      staffId: 7,
+      name: '架空 花子',
+      organizationName: '開発部',
+      permissionType: 1,
+    });
+    expect(calls.map((c) => c.url.pathname)).toEqual([
+      '/api/cooperation/acme/staffs',
+      '/api/cooperation/acme/stamps',
+      '/api/cooperation/acme/staffs/7',
+    ]);
+  });
+
+  it('stamps の応答に staff_id が無ければ自分を決められない', async () => {
     const { fetchMyStaff } = await import('../../src/api/staff.ts');
     const { fakeClient } = await import('../helpers/fake-client.ts');
     const { client } = fakeClient(() => [{ staffId: 1, permissionType: 1 }, { staffId: 7 }]);

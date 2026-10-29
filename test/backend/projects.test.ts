@@ -19,6 +19,13 @@ function handler(_m: string, url: URL) {
   throw new Error(`unexpected ${url.pathname}`);
 }
 
+function noProjects(): Response {
+  return Response.json(
+    { success: false, errors: [{ code: 'ERR301900', message: 'プロジェクトがありません' }] },
+    { status: 404 },
+  );
+}
+
 describe('ApiBackend projects', () => {
   it('listProjects はページを送って全件取り、しばらくキャッシュする', async () => {
     const { client, calls } = fakeClient(handler);
@@ -29,6 +36,19 @@ describe('ApiBackend projects', () => {
     expect(calls.map((c) => c.url.searchParams.get('page'))).toEqual(['0', '1']);
     await backend.listProjects();
     expect(calls).toHaveLength(2);
+  });
+
+  it('見えるプロジェクトが 0 件（ERR301900）なら空として扱う', async () => {
+    const { client } = fakeClient((_m, url) => {
+      if (url.pathname.endsWith('/staffs')) return { staffId: 7 };
+      return noProjects();
+    });
+    const backend = new ApiBackend(client);
+    expect(await backend.listProjects()).toEqual({ projects: [], truncated: false });
+    expect(await backend.listTasks(3)).toEqual({ tasks: [], truncated: false });
+    expect(await backend.getMyProjectIds()).toEqual([]);
+    expect(await backend.getProjectMembers(3)).toEqual({ staffIds: [], ownerStaffIds: [] });
+    expect(await backend.getManhours({ from: '2026-10-01', to: '2026-10-01' })).toEqual([]);
   });
 
   it('listTasks は GET /{c}/{projectId}/tasks', async () => {

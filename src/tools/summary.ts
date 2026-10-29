@@ -1,5 +1,9 @@
 import * as z from 'zod/v4';
-import { summarizeWorkingHours, type WorkingHoursSummary } from '../domain/summary.ts';
+import {
+  summarizeWorkingHours,
+  UNKNOWN_BREAK_NOTE,
+  type WorkingHoursSummary,
+} from '../domain/summary.ts';
 import { startOfMonth, todayInTokyo } from '../time/datetime.ts';
 import { dateSchema, formatMinutes, resolveRange } from './common.ts';
 import { defineTool } from './registry.ts';
@@ -42,6 +46,7 @@ export const summarizeWorkingHoursTool = defineTool({
       maxDays: MAX_RECORD_DAYS,
     });
     const records = await ctx.backend.getWorkingRecords(range);
+    const summary = summarizeWorkingHours(records);
     const byMonth = new Map<string, typeof records>();
     for (const record of records) {
       const month = record.date.slice(0, 7);
@@ -49,11 +54,13 @@ export const summarizeWorkingHoursTool = defineTool({
     }
     return {
       ...range,
-      ...withHours(summarizeWorkingHours(records)),
+      ...withHours(summary),
       months: [...byMonth]
         .sort(([a], [b]) => (a < b ? -1 : 1))
         .map(([month, rs]) => ({ month, ...withHours(summarizeWorkingHours(rs)) })),
-      disclaimer: OVERTIME_DISCLAIMER,
+      disclaimer: summary.breakTimeUnknown
+        ? `${OVERTIME_DISCLAIMER} ${UNKNOWN_BREAK_NOTE}`
+        : OVERTIME_DISCLAIMER,
     };
   },
 });

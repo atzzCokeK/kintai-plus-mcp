@@ -23,7 +23,7 @@ describe('parseStamps', () => {
         stamped_at: '2026/10/27 12:00:00',
         type: 31,
         local_time: '2026/10/27 12:00:00',
-        timezone: '+09:00',
+        timezone: '+9.00',
         attributes: {
           method: 1,
           org_id: 3,
@@ -47,6 +47,22 @@ describe('parseStamps', () => {
       staffId: 7,
       attributes: { method: 1, org_id: 3, latitude: 35.1 },
     });
+  });
+
+  it('multiple_stamps の包みを読む', () => {
+    const stamps = parseStamps({
+      login_company_code: 'acme',
+      multiple_stamps: [
+        {
+          staff_id: 1,
+          count: 1,
+          stamps: [{ stamped_at: '2026/10/27 09:00:00', type: 11, timezone: '+9.00' }],
+        },
+        { staff_id: 2, count: 0, stamps: [] },
+      ],
+    });
+    expect(stamps).toHaveLength(1);
+    expect(stamps[0]).toMatchObject({ staffId: 1, type: 'clock_in' });
   });
 
   it('配列そのものや、従業員ごとの配列も受け付ける', () => {

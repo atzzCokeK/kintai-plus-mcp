@@ -20,8 +20,14 @@ export interface WorkingRecord {
   /** 出勤・退勤の打刻時刻（attendance_punch_time / leaving_punch_time） */
   clockInAt?: Date;
   clockOutAt?: Date;
-  /** 実働時間（丸めなし、分）。残業時間の項目は API にない */
+  /**
+   * 実働時間（分）。API は実働を返さないので、無いときは開始〜終了（無ければ rounded_*）の経過。
+   * その場合は休憩を含み、`workingMinutesAreGross` が true。
+   */
   actualWorkingMinutes?: number;
+  /** true のとき actualWorkingMinutes は休憩を含む経過時間 */
+  workingMinutesAreGross?: boolean;
+  /** 休憩（分）。API が休憩を返さないときは undefined（0 とは区別する） */
   breakMinutes?: number;
 }
 
@@ -30,8 +36,9 @@ const isRec = (v: unknown): v is Rec => typeof v === 'object' && v !== null && !
 const MINUTE = 60_000;
 
 /**
- * 勤務実績 API の応答を読む。形が一次情報で確認できていないため、
- * `{ working_records: [...] }`・配列・従業員ごとの配列を受け付ける。
+ * 勤務実績 API の応答を読む。
+ * `response` は `[{ staff_id, working_records: [...] }]`。
+ * 各レコードに実働・休憩は無く、時刻は `yyyy/mm/dd HH:MM:SS`（終了が翌日以降の夜勤もある）。
  */
 export function parseWorkingRecords(value: unknown, staffId?: number): WorkingRecord[] {
   const out: WorkingRecord[] = [];
@@ -72,7 +79,20 @@ function toRecord(raw: Rec, staffId: number | undefined): WorkingRecord | undefi
   set('clockInAt', raw.attendance_punch_time);
   set('clockOutAt', raw.leaving_punch_time);
   const actual = minutes(raw.actual_working_hours_no_rounding);
-  if (actual !== undefined) record.actualWorkingMinutes = actual;
+  if (actual !== undefined) {
+    record.actualWorkingMinutes = actual;
+  } else {
+    const gross =
+      elapsedMinutes(record.startTime, record.endTime) ??
+      elapsedMinutes(
+        timeOnDate(raw.rounded_start_time, date),
+        timeOnDate(raw.rounded_end_time, date),
+      );
+    if (gross !== undefined) {
+      record.actualWorkingMinutes = gross;
+      record.workingMinutesAreGross = true;
+    }
+  }
   if (Array.isArray(raw.break_time_results)) {
     record.breakMinutes = raw.break_time_results.reduce<number>(
       (sum, b) => sum + breakMinutes(b, date),
@@ -80,6 +100,12 @@ function toRecord(raw: Rec, staffId: number | undefined): WorkingRecord | undefi
     );
   }
   return record;
+}
+
+function elapsedMinutes(start: Date | undefined, end: Date | undefined): number | undefined {
+  if (!start || !end) return undefined;
+  const minutes = Math.round((end.getTime() - start.getTime()) / MINUTE);
+  return minutes >= 0 ? minutes : undefined;
 }
 
 function dayCategory(v: unknown): DayCategory {

@@ -42,8 +42,9 @@ type Rec = Record<string, unknown>;
 const isRec = (v: unknown): v is Rec => typeof v === 'object' && v !== null && !Array.isArray(v);
 
 /**
- * 打刻取得 API の応答を読む。形が一次情報で確認できていないため、
- * `{ stamps: [...] }`・配列・従業員ごとの配列（`[{ staff_id, stamps }]`）を受け付ける。
+ * 打刻取得 API の応答を読む。
+ * 自分: `{ login_company_code, staff_id, count, stamps }`。
+ * 複数従業員: `{ login_company_code, multiple_stamps: [{ staff_id, count, stamps }] }`。
  */
 export function parseStamps(value: unknown, staffId?: number): Stamp[] {
   const out: Stamp[] = [];
@@ -63,9 +64,8 @@ function collect(value: unknown, staffId: number | undefined, out: Stamp[]): voi
     if (stamp) out.push(stamp);
     return;
   }
-  for (const key of ['stamps', 'staffs', 'response']) {
-    if (key in value) collect(value[key], ownStaffId, out);
-  }
+  const listKey = ['stamps', 'multiple_stamps', 'staffs', 'response'].find((key) => key in value);
+  if (listKey) collect(value[listKey], ownStaffId, out);
 }
 
 function toStamp(raw: Rec, staffId: number | undefined): Stamp | undefined {

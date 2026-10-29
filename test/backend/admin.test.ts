@@ -16,11 +16,36 @@ describe('ApiBackend admin', () => {
     expect(calls.map((c) => c.url.searchParams.get('page'))).toEqual(['0', '1', '2']);
   });
 
+  it('ページがちょうど割り切れるとき、次ページの ERR300602 で失敗しない', async () => {
+    const full = Array.from({ length: 20 }, (_, i) => ({
+      staffId: i + 1,
+      lastName: '架空',
+      firstName: `名${i + 1}`,
+      organization: { Name: '開発部' },
+    }));
+    const { client, calls } = fakeClient((_m, url) => {
+      if (url.searchParams.get('page') === '1') {
+        return Response.json(
+          { success: false, errors: [{ code: 'ERR300602', message: '範囲外です' }] },
+          { status: 404 },
+        );
+      }
+      return { login_company_code: 'acme', Count: 20, staffs: full };
+    });
+    const result = await new ApiBackend(client).listStaff();
+    expect(result.staff).toHaveLength(20);
+    expect(result.staff[0]?.organizationName).toBe('開発部');
+    expect(result.truncated).toBe(false);
+    expect(calls.map((c) => c.url.searchParams.get('page'))).toEqual(['0', '1']);
+  });
+
   it('getTeamStamps は 1 日分を 50 人ずつ multiple_stamps で取る', async () => {
     const { client, calls } = fakeClient((_m, url) => ({
-      staffs: (url.searchParams.get('staff_ids') ?? '').split(',').map((id) => ({
+      login_company_code: 'acme',
+      multiple_stamps: (url.searchParams.get('staff_ids') ?? '').split(',').map((id) => ({
         staff_id: Number(id),
-        stamps: [{ stamped_at: '2026/10/27 09:00:00', type: 11 }],
+        count: 1,
+        stamps: [{ stamped_at: '2026/10/27 09:00:00', type: 11, timezone: '+9.00' }],
       })),
     }));
     const ids = Array.from({ length: 120 }, (_, i) => i + 1);
@@ -39,8 +64,10 @@ describe('ApiBackend admin', () => {
       const ids = (url.searchParams.get('staff_ids') ?? '').split(',');
       const n = ids.length === 4 ? 1000 : 2;
       return {
-        staffs: ids.map((id) => ({
+        login_company_code: 'acme',
+        multiple_stamps: ids.map((id) => ({
           staff_id: Number(id),
+          count: n / ids.length,
           stamps: Array.from({ length: n / ids.length }, () => ({
             stamped_at: '2026/10/27 09:00:00',
             type: 11,
@@ -55,6 +82,26 @@ describe('ApiBackend admin', () => {
       '3,4',
     ]);
     expect(result.truncated).toBe(false);
+  });
+
+  it('getWorkingStatuses は response の無い results を読む', async () => {
+    const { client, calls } = fakeClient(() =>
+      Response.json({
+        success: true,
+        results: [{ staff_id: '1002', date: '2026-10-27', working_statuses: [{ name: '出張' }] }],
+        errors: [],
+      }),
+    );
+    const result = await new ApiBackend(client).getWorkingStatuses([
+      { staffId: 1002, date: '2026-10-27' },
+    ]);
+    expect(calls[0]?.method).toBe('POST');
+    expect(calls[0]?.url.pathname).toBe('/api/cooperation/working_statuses/search');
+    expect(calls[0]?.body).toMatchObject({
+      login_company_code: 'acme',
+      search: [{ staff_id: 1002, date: '2026-10-27' }],
+    });
+    expect(result).toEqual([{ staffId: 1002, date: '2026-10-27', labels: ['出張'] }]);
   });
 
   it('getWorkingStatuses は POST /working_statuses/search（企業 ID はボディ）', async () => {

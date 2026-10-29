@@ -49,6 +49,36 @@ describe('get_working_records', () => {
     });
   });
 
+  it('見積もった実働は経過時間だと示し、休憩は unknown', async () => {
+    const backend = fakeBackend({
+      getWorkingRecords: async () => [
+        {
+          date: '2026-10-20',
+          dayCategory: 'workday',
+          startTime: new Date('2026-10-20T13:00:00Z'),
+          endTime: new Date('2026-10-22T11:03:00Z'),
+          actualWorkingMinutes: 2763,
+          workingMinutesAreGross: true,
+        },
+      ],
+    });
+    const out = await getWorkingRecordsTool.handler(
+      { from: '2026-10-20', to: '2026-10-22' },
+      fakeContext(backend, {}, NOW),
+    );
+    expect(out).toMatchObject({
+      records: [
+        {
+          date: '2026-10-20',
+          actualWorkingMinutes: 2763,
+          actualWorkingHours: '46:03',
+          actualWorkingMinutesEstimated: true,
+          breakTime: 'unknown',
+        },
+      ],
+    });
+  });
+
   it('最大 366 日', async () => {
     await expect(
       getWorkingRecordsTool.handler(

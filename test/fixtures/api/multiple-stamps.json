@@ -1,25 +1,39 @@
 {
   "success": true,
   "response": {
-    "staffs": [
+    "login_company_code": "example-co",
+    "multiple_stamps": [
       {
         "staff_id": 1001,
+        "count": 1,
         "stamps": [
           {
             "stamped_at": "2026/10/27 08:58:12",
             "type": 11,
+            "timezone": "+9.00",
             "attributes": { "method": 1, "ip": "192.0.2.10" }
           }
         ]
       },
       {
         "staff_id": 1002,
+        "count": 2,
         "stamps": [
-          { "stamped_at": "2026/10/27 07:30:00", "type": 21, "attributes": { "method": 2 } },
-          { "stamped_at": "2026/10/27 11:00:00", "type": 31, "attributes": { "method": 2 } }
+          {
+            "stamped_at": "2026/10/27 07:30:00",
+            "type": 21,
+            "timezone": "+9.00",
+            "attributes": { "method": 2 }
+          },
+          {
+            "stamped_at": "2026/10/27 11:00:00",
+            "type": 31,
+            "timezone": "+9.00",
+            "attributes": { "method": 2 }
+          }
         ]
       },
-      { "staff_id": 1003, "stamps": [] }
+      { "staff_id": 1003, "count": 0, "stamps": [] }
     ]
   }
 }

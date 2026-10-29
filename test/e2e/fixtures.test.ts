@@ -84,6 +84,7 @@ describe('フィクスチャでの通しの動作', () => {
     expect(res.json).toMatchObject({
       staffId: 1001,
       name: '架空 花子',
+      organizationName: '開発部',
       role: 'admin',
       today: '2026-10-27',
     });
@@ -103,16 +104,28 @@ describe('フィクスチャでの通しの動作', () => {
 
   it('get_working_records と summarize_working_hours', async () => {
     const records = await call('get_working_records', { from: '2026-10-01', to: '2026-10-04' });
-    expect(records.json).toMatchObject({ count: 4 });
+    expect(records.json).toMatchObject({
+      count: 4,
+      records: expect.arrayContaining([
+        expect.objectContaining({
+          date: '2026-10-01',
+          actualWorkingMinutes: 630,
+          actualWorkingMinutesEstimated: true,
+          breakTime: 'unknown',
+        }),
+      ]),
+    });
     const summary = await call('summarize_working_hours', { from: '2026-10-01', to: '2026-10-04' });
     expect(summary.json).toMatchObject({
-      totalWorkingMinutes: 1230,
+      totalWorkingMinutes: 1350,
       workDays: 3,
       holidayWorkDays: 1,
       legalHolidayWorkDays: 1,
-      estimatedOvertimeMinutes: 270,
+      estimatedOvertimeMinutes: 390,
+      breakTimeUnknown: true,
     });
     expect(summary.text).toContain('目安');
+    expect(summary.text).toContain('休憩');
   });
 
   it('check_attendance_issues: 法定休日の出勤を情報として出す', async () => {
@@ -141,6 +154,7 @@ describe('フィクスチャでの通しの動作', () => {
   it('管理者向け: list_staff はメールを返さない', async () => {
     const res = await call('list_staff');
     expect(res.json).toMatchObject({ totalCount: 3, count: 3 });
+    expect(res.text).toContain('開発部');
     expect(res.text).not.toContain('@example.com');
   });
 
