@@ -1,6 +1,7 @@
 import { type Alert, parseAlerts } from '../api/alerts.ts';
 import type { KintaiApiClient } from '../api/client.ts';
 import { COMPANY_ID } from '../api/endpoint.ts';
+import { API_CODE, hasErrorCode } from '../api/errors.ts';
 import { type ManhourDay, parseManhours } from '../api/manhours.ts';
 import { chunk, type DateRange, paginate, splitByDays, splitByMonths } from '../api/paging.ts';
 import {
@@ -178,7 +179,8 @@ export class ApiBackend implements KintaiBackend {
     const client = await this.#getClient();
     const result = await paginate(
       async (page) => {
-        const res = await client.get([COMPANY_ID, 'projects'], { page });
+        const res = await getOrEmptyProjects(() => client.get([COMPANY_ID, 'projects'], { page }));
+        if (res === undefined) return { items: [] };
         return { items: parseProjects(res), totalCount: readTotalCount(res) };
       },
       { pageSize: PROJECT_PAGE_SIZE, maxItems: PROJECT_MAX_ITEMS },
@@ -190,7 +192,10 @@ export class ApiBackend implements KintaiBackend {
     const client = await this.#getClient();
     const result = await paginate(
       async (page) => {
-        const res = await client.get([COMPANY_ID, projectId, 'tasks'], { page });
+        const res = await getOrEmptyProjects(() =>
+          client.get([COMPANY_ID, projectId, 'tasks'], { page }),
+        );
+        if (res === undefined) return { items: [] };
         return { items: parseTasks(res), totalCount: readTotalCount(res) };
       },
       { pageSize: PROJECT_PAGE_SIZE, maxItems: PROJECT_MAX_ITEMS },
@@ -201,7 +206,8 @@ export class ApiBackend implements KintaiBackend {
   async getMyProjectIds(): Promise<number[]> {
     const { staffId } = await this.getMyProfile();
     const client = await this.#getClient();
-    return parseStaffProjectIds(await client.get([COMPANY_ID, 'staff_projects', staffId]));
+    const res = await getOrEmptyProjects(() => client.get([COMPANY_ID, 'staff_projects', staffId]));
+    return res === undefined ? [] : parseStaffProjectIds(res);
   }
 
   async getManhours(range: DateRange, options: { staffId?: number } = {}): Promise<ManhourDay[]> {
@@ -212,11 +218,13 @@ export class ApiBackend implements KintaiBackend {
         : [COMPANY_ID, 'manhours', options.staffId];
     const days: ManhourDay[] = [];
     for (const period of splitByDays(range.from, range.to, MANHOUR_MAX_DAYS, { maxChunks: 4 })) {
-      const res = await client.get(path, {
-        start_date: formatSlashDate(period.from),
-        end_date: formatSlashDate(period.to),
-      });
-      days.push(...parseManhours(res, options.staffId));
+      const res = await getOrEmptyProjects(() =>
+        client.get(path, {
+          start_date: formatSlashDate(period.from),
+          end_date: formatSlashDate(period.to),
+        }),
+      );
+      if (res !== undefined) days.push(...parseManhours(res, options.staffId));
     }
     return days;
   }
@@ -332,7 +340,10 @@ export class ApiBackend implements KintaiBackend {
 
   async getProjectMembers(projectId: number): Promise<ProjectMembers> {
     const client = await this.#getClient();
-    return parseProjectMembers(await client.get([COMPANY_ID, 'project_staffs', projectId]));
+    const res = await getOrEmptyProjects(() =>
+      client.get([COMPANY_ID, 'project_staffs', projectId]),
+    );
+    return res === undefined ? { staffIds: [], ownerStaffIds: [] } : parseProjectMembers(res);
   }
 
   async #fetchProfile(): Promise<Profile> {
@@ -343,5 +354,15 @@ export class ApiBackend implements KintaiBackend {
     if (staff.staffNum !== undefined) profile.staffNum = staff.staffNum;
     if (staff.organizationName !== undefined) profile.organizationName = staff.organizationName;
     return profile;
+  }
+}
+
+/** 見えるプロジェクトが 0 件のとき API は 404 ERR301900 を返す。空として扱う。 */
+async function getOrEmptyProjects(fn: () => Promise<unknown>): Promise<unknown> {
+  try {
+    return await fn();
+  } catch (error) {
+    if (hasErrorCode(error, API_CODE.noProjects)) return undefined;
+    throw error;
   }
 }

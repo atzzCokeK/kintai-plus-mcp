@@ -1,6 +1,7 @@
 {
   "success": true,
   "response": {
+    "count": 3,
     "alerts": [
       { "month": "2026/10", "date": "2026/10/04", "alert_type": 6 },
       { "month": "2026/10", "date": "2026/10/01", "alert_type": 9 },

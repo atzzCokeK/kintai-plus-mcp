@@ -48,12 +48,15 @@ export function fixtureApi(options: { token: string; companyId?: string }) {
     const route = `${method} ${path}`;
     const json = (name: string) => Response.json(load(name));
     if (route === `POST /token/reissue/${company}`) return json('token-reissue');
-    if (route === `GET ${c}/staffs` && query.page === undefined) return json('staffs-me');
+    // page なしは page 0 と同じで一覧。範囲外は 404 ERR300602。
     if (route === `GET ${c}/staffs/1001`) return json('staffs-me');
     if (route === `GET ${c}/staffs`) {
       return page === 0
         ? json('staffs-list')
-        : Response.json({ success: true, response: { staffs: [], TotalCount: 3 } });
+        : Response.json(
+            { success: false, errors: [{ code: 'ERR300602', message: '範囲外です' }] },
+            { status: 404 },
+          );
     }
     if (route === `GET ${c}/stamps`) return json('stamps-today');
     if (route === `GET ${c}/multiple_stamps`) return json('multiple-stamps');

@@ -2,6 +2,7 @@ import { redactSecrets } from './redact.ts';
 
 export type ApiErrorKind =
   | 'auth'
+  | 'unknown_company'
   | 'forbidden'
   | 'not_found'
   | 'invalid_request'
@@ -10,6 +11,24 @@ export type ApiErrorKind =
   | 'network'
   | 'timeout'
   | 'invalid_response';
+
+/** 実環境（2026-10-29）で観測したエラーコード。コードは文字列。 */
+export const API_CODE = {
+  invalidToken: 'ERR300002',
+  unknownCompany: 'ERR300001',
+  invalidDate: 'ERR301001',
+  pageOutOfRange: 'ERR300602',
+  noProjects: 'ERR301900',
+  missingStaffIds: 'ERR301603',
+  rangeTooLong: 'ERR301601',
+} as const;
+
+const PARAM_ERROR_CODES: ReadonlySet<string> = new Set([
+  API_CODE.invalidDate,
+  API_CODE.pageOutOfRange,
+  API_CODE.missingStaffIds,
+  API_CODE.rangeTooLong,
+]);
 
 export interface ApiErrorDetail {
   code: string | null;
@@ -84,7 +103,9 @@ export function parseEnvelope(
   }
 
   if (body.success && !isHttpError(status)) {
-    return body.response ?? null;
+    // 多くの API は response に中身を入れる。勤務処理取得は response が無く results を返す。
+    if ('response' in body) return body.response ?? null;
+    return body;
   }
 
   const apiErrors = normalizeErrors(body.errors).map((e) => ({
@@ -97,20 +118,32 @@ export function parseEnvelope(
       .map((e) => [e.code, e.message].filter((v) => v !== null).join(': '))
       .filter((s) => s !== '')
       .join(' / ') || 'no error details';
-  throw new KintaiApiError({
-    kind,
-    status,
-    apiErrors,
-    message: `Kintai Plus API error (HTTP ${status}): ${summary}`,
-  });
+  const message =
+    kind === 'unknown_company'
+      ? `Kintai Plus API error (HTTP ${status}): ${summary}. The company ID (ログイン企業ID) does not match a company. Check the company ID and the host (atnd.ak4.jp or atnd-awj.ak4.jp).`
+      : `Kintai Plus API error (HTTP ${status}): ${summary}`;
+  throw new KintaiApiError({ kind, status, apiErrors, message });
 }
 
+export function hasErrorCode(error: unknown, code: string): boolean {
+  return error instanceof KintaiApiError && error.apiErrors.some((e) => e.code === code);
+}
+
+/**
+ * エラーコードを HTTP ステータスより先に見る。
+ * 無効トークンは 404 で返るため、ステータスだけで見ると not_found になり再発行の案内に届かない。
+ */
 function classify(status: number, errors: ApiErrorDetail[]): ApiErrorKind {
+  if (errors.some((e) => e.code === API_CODE.invalidToken || looksLikeAuth(e))) return 'auth';
+  if (errors.some((e) => e.code === API_CODE.unknownCompany)) return 'unknown_company';
+  if (errors.some((e) => e.code !== null && PARAM_ERROR_CODES.has(e.code)))
+    return 'invalid_request';
   if (isHttpError(status)) return kindFromStatus(status);
-  const looksLikeAuth = errors.some(
-    (e) => AUTH_HINT.test(e.code ?? '') || AUTH_HINT.test(e.message ?? ''),
-  );
-  return looksLikeAuth ? 'auth' : 'invalid_request';
+  return 'invalid_request';
+}
+
+function looksLikeAuth(error: ApiErrorDetail): boolean {
+  return AUTH_HINT.test(error.code ?? '') || AUTH_HINT.test(error.message ?? '');
 }
 
 export function kindFromStatus(status: number): ApiErrorKind {

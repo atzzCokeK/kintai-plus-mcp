@@ -68,6 +68,18 @@ describe('API からの日時の読み取り', () => {
     );
   });
 
+  it('打刻の timezone `+9.00` を受け付ける', () => {
+    expect(parseApiDateTime('2026-10-27T09:00:00+9.00')?.toISOString()).toBe(
+      '2026-10-27T00:00:00.000Z',
+    );
+    expect(parseApiDateTime('2026/10/27 09:00:00+9.00')?.toISOString()).toBe(
+      '2026-10-27T00:00:00.000Z',
+    );
+    expect(parseApiDateTime('2026/10/27 18:00:00+09:00')?.toISOString()).toBe(
+      '2026-10-27T09:00:00.000Z',
+    );
+  });
+
   it('null・空文字・不正な値は undefined', () => {
     expect(parseApiDateTime(null)).toBeUndefined();
     expect(parseApiDateTime('')).toBeUndefined();

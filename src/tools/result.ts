@@ -59,6 +59,8 @@ function apiHint(error: KintaiApiError): string {
   switch (error.kind) {
     case 'auth':
       return 'The API token may have expired or been revoked. Ask the user to issue a new token from マイページ > APIトークン and run `npx kintai-plus-mcp login`.';
+    case 'unknown_company':
+      return 'The company ID (ログイン企業ID) was not found. Check the company ID and that the host matches the domain after login (atnd.ak4.jp or atnd-awj.ak4.jp), then run `npx kintai-plus-mcp login` again.';
     case 'forbidden':
       return 'Kintai Plus denied this operation. The user may not have permission for it (admin rights may be required), or the public API (公開API利用可否) may be disabled for this user.';
     case 'not_found':

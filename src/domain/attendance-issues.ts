@@ -115,6 +115,7 @@ export function findAttendanceIssues(input: {
     if (status.state === 'on_break') pending = { date, type: 'missing_break_end' };
 
     const minutes = record?.actualWorkingMinutes ?? 0;
+    const worked = record?.workingMinutesAreGross ? '開始から終了までの経過（休憩は不明）' : '実働';
     if (record?.dayCategory === 'workday' && stamps.length === 0 && minutes === 0 && !overnight) {
       add(
         date,
@@ -123,7 +124,7 @@ export function findAttendanceIssues(input: {
       );
     }
     if (minutes > LONG_DAY_MINUTES) {
-      add(date, 'long_working_day', `実働が ${formatHm(minutes)} で、12 時間を超えています`);
+      add(date, 'long_working_day', `${worked}が ${formatHm(minutes)} で、12 時間を超えています`);
     }
 
     const firstIn = stamps.find(isIn);
@@ -141,9 +142,17 @@ export function findAttendanceIssues(input: {
     previousOut = lastOut ? { date, at: lastOut.stampedAt } : undefined;
 
     if (minutes > 0 && record?.dayCategory === 'legal_holiday') {
-      add(date, 'holiday_work', `法定休日に ${formatHm(minutes)} 働いています`);
+      add(
+        date,
+        'holiday_work',
+        holidayWorkMessage('法定休日', minutes, record.workingMinutesAreGross),
+      );
     } else if (minutes > 0 && record?.dayCategory === 'scheduled_holiday') {
-      add(date, 'holiday_work', `所定休日に ${formatHm(minutes)} 働いています`);
+      add(
+        date,
+        'holiday_work',
+        holidayWorkMessage('所定休日', minutes, record.workingMinutesAreGross),
+      );
     }
   }
   if (pending) {
@@ -158,6 +167,11 @@ export function findAttendanceIssues(input: {
   return issues
     .filter((issue) => issue.date >= input.range.from)
     .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+}
+
+function holidayWorkMessage(kind: string, minutes: number, gross: boolean | undefined): string {
+  const base = `${kind}に ${formatHm(minutes)} 働いています`;
+  return gross ? `${base}（開始から終了までの経過。休憩は不明）` : base;
 }
 
 function formatHm(minutes: number): string {

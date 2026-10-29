@@ -18,6 +18,22 @@ describe('parseWorkingStatuses', () => {
     ]);
   });
 
+  it('response が無い results と、文字列の staff_id を読む', () => {
+    expect(
+      parseWorkingStatuses({
+        success: true,
+        results: [
+          { staff_id: '1002', date: '2026-10-20', working_statuses: [] },
+          { staff_id: '1003', date: '2026-10-20', working_statuses: [{ name: '出張' }] },
+        ],
+        errors: [],
+      }),
+    ).toEqual([
+      { staffId: 1002, date: '2026-10-20', labels: [] },
+      { staffId: 1003, date: '2026-10-20', labels: ['出張'] },
+    ]);
+  });
+
   it('配列そのものも読む。staff_id・date のないものは捨てる', () => {
     expect(
       parseWorkingStatuses([{ staff_id: 1, date: '2026-10-27', status_name: '休暇' }, { foo: 1 }]),

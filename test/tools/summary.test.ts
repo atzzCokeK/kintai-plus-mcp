@@ -41,6 +41,26 @@ describe('summarize_working_hours', () => {
     ]);
     expect(String(out.disclaimer)).toMatch(/目安/);
     expect(String(out.disclaimer)).toMatch(/40/);
+    expect(out.breakTimeUnknown).toBe(false);
+  });
+
+  it('休憩が不明な実績では、経過時間である旨を添える', async () => {
+    const backend = fakeBackend({
+      getWorkingRecords: async () => [
+        {
+          date: '2026-10-01',
+          dayCategory: 'workday',
+          actualWorkingMinutes: 600,
+          workingMinutesAreGross: true,
+        },
+      ],
+    });
+    const out = (await summarizeWorkingHoursTool.handler({}, fakeContext(backend, {}, NOW))) as {
+      disclaimer: string;
+      breakTimeUnknown: boolean;
+    };
+    expect(out.breakTimeUnknown).toBe(true);
+    expect(out.disclaimer).toMatch(/休憩/);
   });
 
   it('複数月にまたがると月ごとに分ける', async () => {

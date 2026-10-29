@@ -1,6 +1,7 @@
 import * as z from 'zod/v4';
 import type { WorkingRecord } from '../api/working-records.ts';
 import { assessOvertimeRisk, type RiskLevel } from '../domain/overtime-risk.ts';
+import { UNKNOWN_BREAK_NOTE } from '../domain/summary.ts';
 import { minimizeStaff } from '../privacy.ts';
 import { addDays, endOfMonth, todayInTokyo } from '../time/datetime.ts';
 import { formatMinutes } from './common.ts';
@@ -90,6 +91,7 @@ export const findOvertimeRisksTool = defineTool({
         remainingWorkDays: risk.remainingWorkDays,
       };
     });
+    const breakTimeUnknown = records.some((r) => r.workingMinutesAreGross === true);
     const shown = results
       .filter((r) => input.includeAll || r.level !== 'ok')
       .sort(
@@ -103,7 +105,10 @@ export const findOvertimeRisksTool = defineTool({
       thresholdHours,
       counts,
       staff: shown,
-      disclaimer: OVERTIME_RISK_DISCLAIMER,
+      breakTimeUnknown,
+      disclaimer: breakTimeUnknown
+        ? `${OVERTIME_RISK_DISCLAIMER} ${UNKNOWN_BREAK_NOTE}`
+        : OVERTIME_RISK_DISCLAIMER,
     };
   },
 });

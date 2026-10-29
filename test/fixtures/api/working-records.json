@@ -1,58 +1,50 @@
 {
   "success": true,
-  "response": {
-    "working_records": [
-      {
-        "staff_id": 1001,
-        "working_records": [
-          {
-            "date": "2026/10/01",
-            "working_day_category": 0,
-            "start_time": "2026/10/01 09:00:00",
-            "end_time": "2026/10/01 19:30:00",
-            "rounded_start_time": "2026/10/01 09:00:00",
-            "rounded_end_time": "2026/10/01 19:30:00",
-            "attendance_punch_time": "2026/10/01 08:55:00",
-            "leaving_punch_time": "2026/10/01 19:31:00",
-            "actual_working_hours_no_rounding": 570,
-            "break_time_results": [
-              { "start_time": "2026/10/01 12:00:00", "end_time": "2026/10/01 13:00:00" }
-            ]
-          },
-          {
-            "date": "2026/10/02",
-            "working_day_category": 0,
-            "start_time": "2026/10/02 09:00:00",
-            "end_time": "2026/10/02 18:00:00",
-            "attendance_punch_time": "2026/10/02 08:59:00",
-            "leaving_punch_time": "2026/10/02 18:02:00",
-            "actual_working_hours_no_rounding": 480,
-            "break_time_results": [
-              { "start_time": "2026/10/02 12:00:00", "end_time": "2026/10/02 13:00:00" }
-            ]
-          },
-          {
-            "date": "2026/10/03",
-            "working_day_category": 1,
-            "start_time": null,
-            "end_time": null,
-            "attendance_punch_time": null,
-            "leaving_punch_time": null,
-            "actual_working_hours_no_rounding": 0,
-            "break_time_results": []
-          },
-          {
-            "date": "2026/10/04",
-            "working_day_category": 2,
-            "start_time": "2026/10/04 10:00:00",
-            "end_time": "2026/10/04 13:00:00",
-            "attendance_punch_time": "2026/10/04 10:00:00",
-            "leaving_punch_time": "2026/10/04 13:00:00",
-            "actual_working_hours_no_rounding": 180,
-            "break_time_results": []
-          }
-        ]
-      }
-    ]
-  }
+  "response": [
+    {
+      "staff_id": 1001,
+      "working_records": [
+        {
+          "date": "2026/10/01",
+          "working_day_category": 0,
+          "start_time": "2026/10/01 09:00:00",
+          "end_time": "2026/10/01 19:30:00",
+          "rounded_start_time": "2026/10/01 09:00:00",
+          "rounded_end_time": "2026/10/01 19:30:00",
+          "attendance_punch_time": "2026/10/01 08:55:00",
+          "leaving_punch_time": "2026/10/01 19:31:00"
+        },
+        {
+          "date": "2026/10/02",
+          "working_day_category": 0,
+          "start_time": "2026/10/02 09:00:00",
+          "end_time": "2026/10/02 18:00:00",
+          "rounded_start_time": "2026/10/02 09:00:00",
+          "rounded_end_time": "2026/10/02 18:00:00",
+          "attendance_punch_time": "2026/10/02 08:59:00",
+          "leaving_punch_time": "2026/10/02 18:02:00"
+        },
+        {
+          "date": "2026/10/03",
+          "working_day_category": 1,
+          "start_time": null,
+          "end_time": null,
+          "rounded_start_time": null,
+          "rounded_end_time": null,
+          "attendance_punch_time": null,
+          "leaving_punch_time": null
+        },
+        {
+          "date": "2026/10/04",
+          "working_day_category": 2,
+          "start_time": "2026/10/04 10:00:00",
+          "end_time": "2026/10/04 13:00:00",
+          "rounded_start_time": "2026/10/04 10:00:00",
+          "rounded_end_time": "2026/10/04 13:00:00",
+          "attendance_punch_time": "2026/10/04 10:00:00",
+          "leaving_punch_time": "2026/10/04 13:00:00"
+        }
+      ]
+    }
+  ]
 }

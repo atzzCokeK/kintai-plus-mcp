@@ -1,6 +1,9 @@
 {
   "success": true,
   "response": {
+    "login_company_code": "example-co",
+    "Count": 3,
+    "TotalCount": 3,
     "staffs": [
       {
         "staffId": 1001,
@@ -8,7 +11,9 @@
         "firstName": "花子",
         "email": "hanako@example.com",
         "staffNum": "E0001",
-        "organization": { "name": "開発部" }
+        "organization": { "Name": "開発部" },
+        "Subgroups": [],
+        "permissionGroup": { "Name": "一般管理者" }
       },
       {
         "staffId": 1002,
@@ -16,7 +21,9 @@
         "firstName": "次郎",
         "email": "jiro@example.com",
         "staffNum": "E0002",
-        "organization": { "name": "開発部" }
+        "organization": { "Name": "開発部" },
+        "Subgroups": [],
+        "permissionGroup": { "Name": "一般管理者" }
       },
       {
         "staffId": 1003,
@@ -24,9 +31,8 @@
         "firstName": "三郎",
         "email": "saburo@example.com",
         "staffNum": "E0003",
-        "organization": { "name": "営業部" }
+        "organization": { "Name": "営業部" }
       }
-    ],
-    "TotalCount": 3
+    ]
   }
 }

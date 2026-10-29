@@ -4,12 +4,13 @@
 
 ## 現在の状況
 
-- 最終更新: 2026-10-28
-- v0.1.0 の実装（T1〜T12）と「v0.1 以降の候補」のうち 3 つ（打刻漏れチェック、残業リスク検出、定型プロンプト）は、タスクごとの PR（#1〜#13）で main にマージ済み（ツール 19、プロンプト 4、テスト 359 件）
+- 最終更新: 2026-10-29
+- v0.1.0 の実装（T1〜T12）と「v0.1 以降の候補」のうち 3 つ（打刻漏れチェック、残業リスク検出、定型プロンプト）は、タスクごとの PR（#1〜#13）で main にマージ済み（ツール 19、プロンプト 4）
+- 2026-10-29 に `atnd.ak4.jp` への読み取り専用の疎通で、[api-notes.md](./api-notes.md) の仮定の多くを確認し、違っていたパーサー・フィクスチャ・案内を合わせた。エラーは HTTP 4xx と `ERR3xxxxx`（無効トークン `ERR300002` は認証エラー、企業 ID `ERR300001` は設定ミス、見えるプロジェクト 0 件の `ERR301900` は空一覧、範囲外ページの `ERR300602` は終端）。勤務処理は `results`（`response` は無い、`staff_id` は文字列）。従業員の所属は `organization.Name`。勤務実績に実働・休憩は無く、開始〜終了の経過で見積もる。打刻の timezone は `+9.00`。自分の staffId は `GET /stamps` の `staff_id` でも取る
 - 詰まっている点: Release ワークフローが「chore: release」PR を作れずに失敗する（`GitHub Actions is not permitted to create or approve pull requests`）。リポジトリの Settings > Actions > General > Workflow permissions で「Allow GitHub Actions to create and approve pull requests」を有効にすると直る。`changeset-release/main` ブランチは作られている
 - 残っているのはユーザーの判断・作業が要るもの:
   1. 上の Actions の設定
-  2. 実環境で `pnpm e2e --record` を実行し、[api-notes.md](./api-notes.md) の「未確認事項」を確かめる（応答の形・パラメータ名・page の始まり・DELETE の渡し方など）。違っていたらパーサーとフィクスチャを直す
+  2. [api-notes.md](./api-notes.md) の「未確認事項」がまだ残っている（DELETE の渡し方、工数の期間パラメータ、`staff_projects` の要素、プロジェクト・タスクの page、`staff_ids` の上限、勤務処理ラベルの中身）。必要なら `pnpm e2e --record` で確かめる
   3. npm の初回公開と Trusted Publisher の設定、MCP Registry への公開、Public 化前の docs/ の見直し（手順は [release.md](./release.md)）。「chore: release」PR をマージすると 0.1.0 の公開に進むので、これらが済んでから
   4. ブラウザモード（申請・スケジュール）: ログインの扱い・規約の解釈・Playwright の扱いなど設計判断が必要（ADR 0001）。着手前に相談
 - 途中で決めたこと（ユーザー未確認）: ADR 0007（期限不明のトークンは初回に再発行）、所定休日の時間外は 1 日 8 時間超で数える（design.md に追記）、自分の従業員情報は保存済みの staffId で取る、打刻漏れチェックの判定（夜勤は 16 時間以内、12 時間超・インターバル 11 時間未満を警告）、残業リスクの予測方法（ペース × 残りの平日、しきい値 45 時間）

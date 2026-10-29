@@ -11,6 +11,7 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { RecordedResponse } from '../src/api/client.ts';
+import { API_CODE, hasErrorCode } from '../src/api/errors.ts';
 import { isAdminRole } from '../src/api/staff.ts';
 import { ApiBackend } from '../src/backend/api-backend.ts';
 import { createRuntime } from '../src/runtime.ts';
@@ -43,6 +44,11 @@ async function step(name: string, fn: () => Promise<string>): Promise<void> {
   try {
     results.push([name, `ok  ${await fn()}`]);
   } catch (error) {
+    // 見えるプロジェクトが 0 件だと 404 ERR301900。一覧系は空として成功させる。
+    if (hasErrorCode(error, API_CODE.noProjects)) {
+      results.push([name, 'ok  0 (no visible projects)']);
+      return;
+    }
     const kind =
       (error as { kind?: string }).kind ?? (error instanceof Error ? error.name : 'error');
     results.push([name, `NG  ${kind}: ${error instanceof Error ? error.message : String(error)}`]);

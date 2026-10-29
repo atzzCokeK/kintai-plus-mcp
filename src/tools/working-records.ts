@@ -20,7 +20,12 @@ export function formatWorkingRecord(r: WorkingRecord): Record<string, unknown> {
     out.actualWorkingMinutes = r.actualWorkingMinutes;
     out.actualWorkingHours = formatMinutes(r.actualWorkingMinutes);
   }
-  if (r.breakMinutes !== undefined) out.breakMinutes = r.breakMinutes;
+  if (r.workingMinutesAreGross) {
+    out.actualWorkingMinutesEstimated = true;
+    out.breakTime = 'unknown';
+  } else if (r.breakMinutes !== undefined) {
+    out.breakMinutes = r.breakMinutes;
+  }
   return out;
 }
 
@@ -28,8 +33,9 @@ export const getWorkingRecordsTool = defineTool({
   name: 'get_working_records',
   title: 'Get my working records',
   description:
-    'Get your own daily working records (勤務実績): day category (労働日 / 所定休日 / 法定休日), start/end time, punch times, ' +
-    'actual working minutes (実働時間, unrounded) and break minutes. Defaults to the 1st of this month through today. ' +
+    'Get your own daily working records (勤務実績): day category (労働日 / 所定休日 / 法定休日), start/end time, and punch times. ' +
+    'The API does not return actual working minutes or breaks, so actual minutes are the elapsed time from start to end (breaks included) and break time is unknown. ' +
+    'Defaults to the 1st of this month through today. ' +
     `Long periods are split into 31-day requests automatically (max ${MAX_RECORD_DAYS} days). ` +
     'There is no overtime field; use summarize_working_hours for totals and an overtime estimate.',
   inputSchema: z.object({

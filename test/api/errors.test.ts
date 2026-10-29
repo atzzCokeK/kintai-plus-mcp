@@ -44,6 +44,81 @@ describe('parseEnvelope', () => {
     expect(err.kind).toBe(kind);
   });
 
+  it('HTTP 404 でもエラーコードを先に見る（無効トークンを not_found にしない）', () => {
+    const token = catchError(() =>
+      parseEnvelope(
+        404,
+        JSON.stringify({
+          success: false,
+          errors: [{ code: 'ERR300002', message: '指定されたトークンは無効です。' }],
+        }),
+      ),
+    );
+    expect(token.kind).toBe('auth');
+    expect(token.apiErrors[0]?.code).toBe('ERR300002');
+
+    const company = catchError(() =>
+      parseEnvelope(
+        404,
+        JSON.stringify({
+          success: false,
+          errors: [{ code: 'ERR300001', message: '指定された企業は存在しません。' }],
+        }),
+      ),
+    );
+    expect(company.kind).toBe('unknown_company');
+    expect(company.message).toMatch(/ログイン企業ID/);
+
+    const dates = catchError(() =>
+      parseEnvelope(
+        404,
+        JSON.stringify({
+          success: false,
+          errors: [
+            { code: 'ERR301001', message: '開始日が不正です' },
+            { code: 'ERR301001', message: '終了日が不正です' },
+          ],
+        }),
+      ),
+    );
+    expect(dates.kind).toBe('invalid_request');
+    expect(dates.message).toContain('開始日が不正です');
+    expect(dates.message).toContain('終了日が不正です');
+    expect(dates.apiErrors).toHaveLength(2);
+
+    expect(
+      catchError(() =>
+        parseEnvelope(
+          400,
+          JSON.stringify({
+            success: false,
+            errors: [{ code: 'ERR301603', message: 'staff_ids がありません' }],
+          }),
+        ),
+      ).kind,
+    ).toBe('invalid_request');
+    expect(
+      catchError(() =>
+        parseEnvelope(
+          400,
+          JSON.stringify({
+            success: false,
+            errors: [{ code: 'ERR301601', message: '期間は31日までです' }],
+          }),
+        ),
+      ).kind,
+    ).toBe('invalid_request');
+  });
+
+  it('success で response が無く results があるときはボディを返す', () => {
+    const body = JSON.stringify({
+      success: true,
+      results: [{ staff_id: '1002' }],
+      errors: [],
+    });
+    expect(parseEnvelope(200, body)).toMatchObject({ results: [{ staff_id: '1002' }] });
+  });
+
   it('HTTP 200 でもトークンに関するエラーは auth に分類する', () => {
     const body = JSON.stringify({
       success: false,

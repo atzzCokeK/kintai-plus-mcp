@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { KintaiApiError } from '../../src/api/errors.ts';
 import {
   chunk,
   LimitExceededError,
@@ -96,6 +97,29 @@ describe('paginate（従業員一覧は 20 人/ページ、page は 0 始まり�
     );
     expect(result.items).toHaveLength(45);
     expect(result.totalCount).toBeUndefined();
+    expect(pages).toEqual([0, 1, 2]);
+  });
+
+  it('範囲外ページ（ERR300602）は終端にする（件数がページサイズの倍数のとき）', async () => {
+    const people = Array.from({ length: 40 }, (_, i) => i + 1);
+    const pages: number[] = [];
+    const result = await paginate(
+      async (page) => {
+        pages.push(page);
+        if (page >= 2) {
+          throw new KintaiApiError({
+            kind: 'not_found',
+            status: 404,
+            message: 'page',
+            apiErrors: [{ code: 'ERR300602', message: '範囲外です' }],
+          });
+        }
+        return { items: people.slice(page * 20, page * 20 + 20) };
+      },
+      { pageSize: 20 },
+    );
+    expect(result.items).toEqual(people);
+    expect(result.truncated).toBe(false);
     expect(pages).toEqual([0, 1, 2]);
   });
 

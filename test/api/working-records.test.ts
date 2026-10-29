@@ -72,6 +72,49 @@ describe('parseWorkingRecords', () => {
     ]);
   });
 
+  it('実働と休憩が無いときは開始〜終了の経過を見積もり、休憩は不明（日をまたいでも）', () => {
+    const [overnight] = parseWorkingRecords([
+      {
+        date: '2026/10/20',
+        working_day_category: 0,
+        start_time: '2026/10/20 22:00:00',
+        end_time: '2026/10/22 20:03:00',
+        rounded_start_time: '2026/10/20 22:00:00',
+        rounded_end_time: '2026/10/22 20:00:00',
+        attendance_punch_time: '2026/10/20 21:58:00',
+        leaving_punch_time: '2026/10/22 20:03:00',
+      },
+    ]);
+    expect(overnight).toMatchObject({
+      date: '2026-10-20',
+      actualWorkingMinutes: 2763,
+      workingMinutesAreGross: true,
+    });
+    expect(overnight?.breakMinutes).toBeUndefined();
+    expect(overnight?.endTime?.toISOString()).toBe('2026-10-22T11:03:00.000Z');
+  });
+
+  it('開始終了が無く rounded_* だけならそちらで見積もる', () => {
+    const [r] = parseWorkingRecords([
+      {
+        date: '2026/10/21',
+        working_day_category: 0,
+        rounded_start_time: '2026/10/21 09:00:00',
+        rounded_end_time: '2026/10/21 18:00:00',
+      },
+    ]);
+    expect(r?.actualWorkingMinutes).toBe(540);
+    expect(r?.workingMinutesAreGross).toBe(true);
+    expect(r?.startTime).toBeUndefined();
+    expect(r?.breakMinutes).toBeUndefined();
+  });
+
+  it('response が従業員ごとの配列でも読む', () => {
+    const rs = parseWorkingRecords([{ staff_id: '1001', working_records: [record] }]);
+    expect(rs[0]).toMatchObject({ staffId: 1001, actualWorkingMinutes: 510, breakMinutes: 60 });
+    expect(rs[0]?.workingMinutesAreGross).toBeUndefined();
+  });
+
   it('休憩が分数で来ても合計する', () => {
     const [r] = parseWorkingRecords([
       { ...record, break_time_results: [{ break_time: 45 }, { minutes: 15 }] },

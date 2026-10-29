@@ -1,3 +1,4 @@
+import { endOfDay, formatStampQuery, startOfDay, todayInTokyo } from '../time/datetime.ts';
 import type { KintaiApiClient } from './client.ts';
 import { COMPANY_ID } from './endpoint.ts';
 import { KintaiApiError } from './errors.ts';
@@ -44,8 +45,9 @@ function num(v: unknown): number | undefined {
 }
 
 /**
- * 従業員取得 API の 1 人分を読む。応答の形が一次情報で確認できていないため、
- * camelCase / snake_case、配列や `{ staffs: [...] }` で包まれた形も受け付ける（包まれていれば先頭の人）。
+ * 従業員取得 API の 1 人分を読む。
+ * 氏名は lastName / firstName。所属名は organization.Name（name も受ける）。
+ * 配列や `{ staffs: [...] }` で包まれていれば先頭の人。
  */
 export function parseStaff(value: unknown): StaffSummary | undefined {
   return parseStaffList(value)[0];
@@ -73,8 +75,9 @@ function toStaff(raw: Rec): StaffSummary[] {
     ([last, first].filter(Boolean).join(' ') || undefined);
 
   const org = pick(raw, 'organization');
+  // ネストしたオブジェクトの名前は Name（organization.Name など）。name だけだと所属が落ちる。
   const organizationName = isRec(org)
-    ? str(pick(org, 'name', 'organizationName', 'organization_name'))
+    ? str(pick(org, 'Name', 'name', 'organizationName', 'organization_name'))
     : str(pick(raw, 'organizationName', 'organization_name'));
 
   const group = pick(raw, 'permissionGroup', 'permission_group');
@@ -97,36 +100,62 @@ function toStaff(raw: Rec): StaffSummary[] {
 
 /**
  * 自分の従業員情報。自分の staffId がわかっていれば `/staffs/{staffId}` で取る。
- * 一覧が返った場合は staffId が一致する人を選び、決められなければエラーにする（他人を自分と取り違えて権限を誤らないため）。
+ * 管理者の `GET /staffs`（page なし）は一覧を返す。1 人に決まらないときは
+ * `GET /stamps` の `staff_id` で自分を決める（他人を自分と取り違えて権限を誤らないため）。
  */
 export async function fetchMyStaff(
   client: KintaiApiClient,
   options: { staffId?: number | undefined; token?: string } = {},
 ): Promise<StaffSummary> {
-  const path =
-    options.staffId === undefined
-      ? [COMPANY_ID, 'staffs']
-      : [COMPANY_ID, 'staffs', options.staffId];
-  const res = await client.get(
-    path,
-    undefined,
-    options.token ? { token: options.token } : undefined,
-  );
-  const list = parseStaffList(res);
-  const staff =
-    options.staffId === undefined
-      ? list.length === 1
-        ? list[0]
-        : undefined
-      : list.find((s) => s.staffId === options.staffId);
-  if (!staff) {
+  const tokenOpt = options.token ? { token: options.token } : undefined;
+  if (options.staffId !== undefined) {
+    const res = await client.get([COMPANY_ID, 'staffs', options.staffId], undefined, tokenOpt);
+    const staff = parseStaffList(res).find((s) => s.staffId === options.staffId);
+    if (!staff) {
+      throw new KintaiApiError({
+        kind: 'invalid_response',
+        message: 'Staff response had no matching staff ID',
+      });
+    }
+    return staff;
+  }
+
+  const list = parseStaffList(await client.get([COMPANY_ID, 'staffs'], undefined, tokenOpt));
+  if (list.length === 1 && list[0]) return list[0];
+
+  const ownerId = await fetchOwnerStaffId(client, tokenOpt);
+  const fromList = list.find((s) => s.staffId === ownerId);
+  if (fromList) return fromList;
+  const byId = parseStaff(await client.get([COMPANY_ID, 'staffs', ownerId], undefined, tokenOpt));
+  if (!byId) {
     throw new KintaiApiError({
       kind: 'invalid_response',
-      message:
-        list.length > 1
-          ? 'Staff response contained several staff; could not tell which one is you'
-          : 'Staff response had no matching staff ID',
+      message: 'Staff response had no matching staff ID',
     });
   }
-  return staff;
+  return byId;
+}
+
+/** 自分の staffId。打刻取得の応答に `staff_id` が入る（一覧からは自分を決められないとき用）。 */
+async function fetchOwnerStaffId(
+  client: KintaiApiClient,
+  tokenOpt: { token: string } | undefined,
+): Promise<number> {
+  const today = todayInTokyo();
+  const res = await client.get(
+    [COMPANY_ID, 'stamps'],
+    {
+      start_date: formatStampQuery(startOfDay(today)),
+      end_date: formatStampQuery(endOfDay(today)),
+    },
+    tokenOpt,
+  );
+  const id = isRec(res) ? num(res.staff_id ?? res.staffId) : undefined;
+  if (id === undefined) {
+    throw new KintaiApiError({
+      kind: 'invalid_response',
+      message: 'Could not determine your staff ID from the stamps response',
+    });
+  }
+  return id;
 }
