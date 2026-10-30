@@ -12,6 +12,8 @@ export const checkAttendanceIssuesTool = defineTool({
   description:
     'Check your own punches and working records for issues (打刻漏れチェック): missing clock out/in (退勤・出勤の打刻忘れ), ' +
     'break not ended (休憩戻なし), no punches on a workday, days over 12 hours, rest interval under 11 hours (勤務間インターバル), and holiday work. ' +
+    'A missing punch is not reported when the working record already has that start or end time (for example after a correction in the web UI). ' +
+    'When break time is unknown, elapsed time over 12 hours is info unless it still exceeds 12 hours after a 1-hour break. ' +
     `Defaults to the 1st of this month through yesterday (on the 1st, the previous month). Max ${MAX_DAYS} days. ` +
     'Overnight shifts are recognized. Leave and requests are not visible via the API, so "no punches" may simply be a day off.',
   inputSchema: z.object({

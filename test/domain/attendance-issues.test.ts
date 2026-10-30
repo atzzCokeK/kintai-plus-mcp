@@ -121,6 +121,59 @@ describe('findAttendanceIssues', () => {
     expect(issues).toEqual([expect.objectContaining({ type: 'holiday_work', severity: 'info' })]);
   });
 
+  it('勤務実績に開始・終了があれば、打刻が欠けていても打刻漏れにしない', () => {
+    const at = (iso: string) => new Date(iso);
+    const issues = findAttendanceIssues({
+      range: { from: '2026-10-01', to: '2026-10-03' },
+      records: [
+        {
+          ...rec('2026-10-01', 'workday', 480),
+          clockOutAt: at('2026-10-01T18:00:00+09:00'),
+        },
+        {
+          ...rec('2026-10-02', 'workday', 480),
+          endTime: at('2026-10-02T18:00:00+09:00'),
+        },
+        {
+          ...rec('2026-10-03', 'workday', 480),
+          startTime: at('2026-10-03T09:00:00+09:00'),
+        },
+      ],
+      stamps: [
+        s('clock_in', '2026-10-01T09:00:00+09:00'),
+        s('clock_in', '2026-10-02T09:00:00+09:00'),
+        s('break_start', '2026-10-02T12:00:00+09:00'),
+        s('clock_out', '2026-10-03T18:00:00+09:00'),
+      ],
+    });
+    expect(types(issues)).toEqual([]);
+  });
+
+  it('休憩が不明な経過は、12 時間超を情報にし、1 時間引いても超えるときだけ警告にする', () => {
+    const gross = (date: string, minutes: number): WorkingRecord => ({
+      date,
+      dayCategory: 'workday',
+      actualWorkingMinutes: minutes,
+      workingMinutesAreGross: true,
+    });
+    const issues = findAttendanceIssues({
+      range: { from: '2026-10-08', to: '2026-10-09' },
+      records: [gross('2026-10-08', 13 * 60), gross('2026-10-09', 13 * 60 + 1)],
+      stamps: [
+        s('clock_in', '2026-10-08T09:00:00+09:00'),
+        s('clock_out', '2026-10-08T22:00:00+09:00'),
+        s('clock_in', '2026-10-09T09:00:00+09:00'),
+        s('clock_out', '2026-10-09T22:01:00+09:00'),
+      ],
+    });
+    expect(issues.map((i) => [i.date, i.type, i.severity])).toEqual([
+      ['2026-10-08', 'long_working_day', 'info'],
+      ['2026-10-09', 'long_working_day', 'warning'],
+    ]);
+    expect(issues[0]?.message).toMatch(/休憩/);
+    expect(issues[1]?.message).toMatch(/休憩/);
+  });
+
   it('問題がなければ空', () => {
     expect(
       findAttendanceIssues({

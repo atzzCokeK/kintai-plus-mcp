@@ -20,9 +20,16 @@
       "environmentVariables": [
         {
           "name": "KINTAI_PLUS_TOKEN",
-          "description": "API token (only for first-time import; `npx kintai-plus-mcp login` is recommended instead)",
+          "description": "API token used only in this process. Not stored or reissued unless KINTAI_PLUS_PERSIST_ENV_TOKEN=true. Prefer `npx kintai-plus-mcp login`.",
           "isRequired": false,
           "isSecret": true
+        },
+        {
+          "name": "KINTAI_PLUS_PERSIST_ENV_TOKEN",
+          "description": "When true, store KINTAI_PLUS_TOKEN and reissue it if the expiry is unknown. Reissue invalidates the token in the environment.",
+          "isRequired": false,
+          "format": "boolean",
+          "default": "false"
         },
         {
           "name": "KINTAI_PLUS_COMPANY_ID",

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ApiBackend } from '../../src/backend/api-backend.ts';
 import { getAlertsTool } from '../../src/tools/alerts.ts';
+import { ToolInputError } from '../../src/tools/result.ts';
 import { fakeBackend, fakeContext } from '../helpers/fake-backend.ts';
 import { fakeClient } from '../helpers/fake-client.ts';
 
@@ -37,5 +38,16 @@ describe('get_alerts', () => {
       { month: '2026-10', date: '2026-10-02', type: 1, label: '打刻忘れ' },
       { month: '2026-10', type: 13, label: '36協定' },
     ]);
+  });
+
+  it('月は 01 から 12。範囲外は 0 件にせず入力エラー', async () => {
+    expect(getAlertsTool.inputSchema.safeParse({ month: '2026-13' }).success).toBe(false);
+    expect(getAlertsTool.inputSchema.safeParse({ month: '2026-00' }).success).toBe(false);
+    await expect(getAlertsTool.handler({ month: '2026-13' }, fakeContext(backend))).rejects.toThrow(
+      ToolInputError,
+    );
+    await expect(getAlertsTool.handler({ month: '2026-13' }, fakeContext(backend))).rejects.toThrow(
+      /01-12/,
+    );
   });
 });

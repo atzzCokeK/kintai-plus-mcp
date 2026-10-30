@@ -89,7 +89,7 @@ describe('importFromEnv', () => {
     KINTAI_PLUS_HOST: 'https://atnd-awj.ak4.jp/',
   };
 
-  it('保存先が空なら環境変数から取り込む', async () => {
+  it('保存先が空でも、既定では環境変数のトークンを保存しない', async () => {
     const store = memoryStore();
     const result = await importFromEnv(store, env, NOW);
     expect(result).toEqual({
@@ -99,7 +99,14 @@ describe('importFromEnv', () => {
       token: 'env-token-123456',
       updatedAt: NOW.toISOString(),
     });
+    expect(store.saved).toHaveLength(0);
+  });
+
+  it('KINTAI_PLUS_PERSIST_ENV_TOKEN に相当する persist のときだけ保存する', async () => {
+    const store = memoryStore();
+    await importFromEnv(store, env, NOW, { persist: true });
     expect(store.saved).toHaveLength(1);
+    expect(store.saved[0]?.token).toBe('env-token-123456');
   });
 
   it('接続先を省略したら atnd.ak4.jp', async () => {

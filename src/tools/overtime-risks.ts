@@ -4,7 +4,7 @@ import { assessOvertimeRisk, type RiskLevel } from '../domain/overtime-risk.ts';
 import { UNKNOWN_BREAK_NOTE } from '../domain/summary.ts';
 import { minimizeStaff } from '../privacy.ts';
 import { addDays, endOfMonth, todayInTokyo } from '../time/datetime.ts';
-import { formatMinutes } from './common.ts';
+import { assertMonth, formatMinutes, monthSchema } from './common.ts';
 import { defineTool } from './registry.ts';
 import { ToolInputError } from './result.ts';
 
@@ -23,11 +23,7 @@ export const findOvertimeRisksTool = defineTool({
     '(月末の着地予測), then list who is over or likely to exceed the threshold (default 45 hours, the standard monthly limit under a 36 agreement). ' +
     'Levels: over (already exceeded), likely (projected to exceed), watch (projected ≥ 80%). Always present results as estimates.',
   inputSchema: z.object({
-    month: z
-      .string()
-      .regex(/^\d{4}-\d{2}$/, 'Use YYYY-MM')
-      .optional()
-      .describe('Month (YYYY-MM). Defaults to the current month.'),
+    month: monthSchema.optional().describe('Month (YYYY-MM). Defaults to the current month.'),
     staffIds: z
       .array(z.number().int().positive())
       .min(1)
@@ -51,6 +47,7 @@ export const findOvertimeRisksTool = defineTool({
   kind: 'read',
   handler: async (input, ctx) => {
     const today = todayInTokyo(ctx.now());
+    if (input.month) assertMonth(input.month);
     const month = input.month ?? today.slice(0, 7);
     const monthStart = `${month}-01`;
     if (monthStart > today) throw new ToolInputError(`${month} has not started yet.`);

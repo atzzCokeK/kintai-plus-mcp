@@ -11,6 +11,7 @@ describe('loadConfig', () => {
       includeLocation: false,
       logLevel: 'info',
       minIntervalMs: 300,
+      persistEnvToken: false,
     });
   });
 
@@ -24,6 +25,7 @@ describe('loadConfig', () => {
         KINTAI_PLUS_INCLUDE_LOCATION: 'yes',
         KINTAI_PLUS_LOG_LEVEL: 'debug',
         KINTAI_PLUS_MIN_INTERVAL_MS: '1000',
+        KINTAI_PLUS_PERSIST_ENV_TOKEN: 'true',
       }),
     ).toEqual({
       refreshBeforeDays: 7,
@@ -33,6 +35,7 @@ describe('loadConfig', () => {
       includeLocation: true,
       logLevel: 'debug',
       minIntervalMs: 1000,
+      persistEnvToken: true,
     });
   });
 

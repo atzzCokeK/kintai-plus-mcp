@@ -32,7 +32,29 @@ async function staffIndex(ctx: ToolContext): Promise<Map<number, MinimalStaff>> 
 }
 
 async function resolveStaffIds(input: number[] | undefined, ctx: ToolContext): Promise<number[]> {
-  if (input) return [...new Set(input)];
+  if (input) {
+    const unique = [...new Set(input)];
+    try {
+      const listed = await ctx.backend.listStaff();
+      if (!listed.truncated) {
+        const known = new Set(listed.staff.map((s) => s.staffId));
+        const unknown = unique.filter((id) => !known.has(id));
+        if (unknown.length > 0) {
+          throw new ToolInputError(
+            `Unknown staff ID(s): ${unknown.join(', ')}. They are not in the staff you manage. ` +
+              'Use list_staff to get valid IDs. ' +
+              'Kintai Plus reports an unknown ID as 「従業員IDは必ず入力してください」, which does not mean staffIds was omitted.',
+          );
+        }
+      }
+    } catch (error) {
+      if (error instanceof ToolInputError) throw error;
+      ctx.logger.warn(
+        `Could not check staff IDs (${error instanceof Error ? error.name : 'error'})`,
+      );
+    }
+    return unique;
+  }
   const ids = (await managedStaff(ctx)).map((s) => s.staffId);
   if (ids.length > 500) {
     throw new ToolInputError(

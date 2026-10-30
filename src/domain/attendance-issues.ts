@@ -24,6 +24,11 @@ export interface AttendanceIssue {
 
 /** 長時間労働とみなす 1 日の実働（分） */
 const LONG_DAY_MINUTES = 12 * 60;
+/**
+ * 休憩が不明な経過時間から差し引く幅（分）。
+ * 8 時間超の法定休憩は 1 時間。これを引いても 12 時間を超えるときだけ警告にする。
+ */
+const UNKNOWN_BREAK_ALLOWANCE_MINUTES = 60;
 /** 勤務間インターバルの目安（分） */
 const MIN_INTERVAL_MINUTES = 11 * 60;
 /** 日をまたぐ勤務とみなす、出勤から翌日の退勤までの最長（分） */
@@ -47,6 +52,8 @@ const isOut = (s: Stamp) => s.type === 'clock_out' || s.type === 'direct_out';
  * 日をまたぐ勤務（前日に出勤し、翌日の最初の打刻が退勤）は 1 つの勤務として扱い、打刻漏れにしない。
  * 範囲の初日の朝に終わる夜勤のため、stamps には範囲の前日の分も含めてよい。
  * 休暇・申請は API で見えないため、「労働日に打刻なし」は休暇の可能性を添えて warning にとどめる。
+ * 勤務実績に開始・終了（または出勤・退勤の打刻時刻）がある日は、打刻修正などで打刻が欠けていても打刻漏れにしない。
+ * 休憩が不明な経過時間は 12 時間超を info にし、1 時間引いても超えるときだけ warning にする。
  */
 export function findAttendanceIssues(input: {
   range: DateRange;
@@ -54,8 +61,22 @@ export function findAttendanceIssues(input: {
   stamps: readonly Stamp[];
 }): AttendanceIssue[] {
   const issues: AttendanceIssue[] = [];
-  const add = (date: LocalDate, type: IssueType, message: string) =>
-    issues.push({ date, type, severity: SEVERITY[type], message });
+  const add = (date: LocalDate, type: IssueType, message: string, severity = SEVERITY[type]) =>
+    issues.push({ date, type, severity, message });
+  const reportOpenPunch = (open: {
+    date: LocalDate;
+    type: 'missing_clock_out' | 'missing_break_end';
+  }) => {
+    // 終了時刻がある勤務実績は、打刻修正でその日が閉じているとみなす（休憩の内訳は API に無い）
+    if (recordHasClockOut(recordByDate.get(open.date))) return;
+    add(
+      open.date,
+      open.type,
+      open.type === 'missing_clock_out'
+        ? '退勤の打刻がありません（打刻忘れの可能性）'
+        : '休憩戻の打刻がありません（休憩中のまま）',
+    );
+  };
 
   const stampsByDate = new Map<LocalDate, Stamp[]>();
   for (const stamp of [...input.stamps].sort(
@@ -89,18 +110,10 @@ export function findAttendanceIssues(input: {
       startsWithOut &&
       firstInOrOut.stampedAt.getTime() - pending.lastInAt.getTime() <=
         MAX_OVERNIGHT_SHIFT_MINUTES * 60_000;
-    if (pending && !overnight) {
-      add(
-        pending.date,
-        pending.type,
-        pending.type === 'missing_clock_out'
-          ? '退勤の打刻がありません（打刻忘れの可能性）'
-          : '休憩戻の打刻がありません（休憩中のまま）',
-      );
-    }
+    if (pending && !overnight) reportOpenPunch(pending);
     pending = undefined;
 
-    if (startsWithOut && !overnight)
+    if (startsWithOut && !overnight && !recordHasClockIn(record))
       add(date, 'missing_clock_in', '出勤の打刻がないまま退勤しています');
 
     const status = computeDayStatus(stamps, endOfDay(date));
@@ -115,7 +128,6 @@ export function findAttendanceIssues(input: {
     if (status.state === 'on_break') pending = { date, type: 'missing_break_end' };
 
     const minutes = record?.actualWorkingMinutes ?? 0;
-    const worked = record?.workingMinutesAreGross ? '開始から終了までの経過（休憩は不明）' : '実働';
     if (record?.dayCategory === 'workday' && stamps.length === 0 && minutes === 0 && !overnight) {
       add(
         date,
@@ -124,7 +136,7 @@ export function findAttendanceIssues(input: {
       );
     }
     if (minutes > LONG_DAY_MINUTES) {
-      add(date, 'long_working_day', `${worked}が ${formatHm(minutes)} で、12 時間を超えています`);
+      addLongDay(date, minutes, record?.workingMinutesAreGross === true, add);
     }
 
     const firstIn = stamps.find(isIn);
@@ -155,18 +167,45 @@ export function findAttendanceIssues(input: {
       );
     }
   }
-  if (pending) {
-    add(
-      pending.date,
-      pending.type,
-      pending.type === 'missing_clock_out'
-        ? '退勤の打刻がありません（打刻忘れの可能性）'
-        : '休憩戻の打刻がありません（休憩中のまま）',
-    );
-  }
+  if (pending) reportOpenPunch(pending);
   return issues
     .filter((issue) => issue.date >= input.range.from)
     .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+}
+
+function recordHasClockIn(record: WorkingRecord | undefined): boolean {
+  return record?.startTime !== undefined || record?.clockInAt !== undefined;
+}
+
+function recordHasClockOut(record: WorkingRecord | undefined): boolean {
+  return record?.endTime !== undefined || record?.clockOutAt !== undefined;
+}
+
+function addLongDay(
+  date: LocalDate,
+  minutes: number,
+  gross: boolean,
+  add: (date: LocalDate, type: IssueType, message: string, severity?: IssueSeverity) => void,
+): void {
+  if (!gross) {
+    add(date, 'long_working_day', `実働が ${formatHm(minutes)} で、12 時間を超えています`);
+    return;
+  }
+  const elapsed = `開始から終了までの経過が ${formatHm(minutes)}`;
+  if (minutes > LONG_DAY_MINUTES + UNKNOWN_BREAK_ALLOWANCE_MINUTES) {
+    add(
+      date,
+      'long_working_day',
+      `${elapsed} です。1 時間の休憩を差し引いても 12 時間を超えます（実際の休憩時間は不明）`,
+    );
+    return;
+  }
+  add(
+    date,
+    'long_working_day',
+    `${elapsed} で 12 時間を超えています。休憩時間が不明なため、実働はこれより短い可能性があります`,
+    'info',
+  );
 }
 
 function holidayWorkMessage(kind: string, minutes: number, gross: boolean | undefined): string {

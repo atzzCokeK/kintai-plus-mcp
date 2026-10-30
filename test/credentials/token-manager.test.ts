@@ -123,6 +123,15 @@ describe('TokenManager', () => {
     expect(reissued).toHaveLength(1);
   });
 
+  it('期限不明でも、再発行しない指定なら今のトークンのまま使う', async () => {
+    const { manager, reissued, store } = setup(base({ expiresAt: undefined }), {
+      reissueUnknownExpiry: false,
+    });
+    expect(await manager.getToken()).toBe('token-old-000000');
+    expect(reissued).toEqual([]);
+    expect(store.saves).toEqual([]);
+  });
+
   it('ロック取得後に保存先を読み直し、他のプロセスが更新済みなら再発行しない', async () => {
     const { manager, reissued, store } = setup(
       base({ expiresAt: new Date(NOW.getTime() + 3 * DAY).toISOString() }),

@@ -1,4 +1,5 @@
 import * as z from 'zod/v4';
+import { assertMonth, monthSchema } from './common.ts';
 import { defineTool } from './registry.ts';
 
 export const getAlertsTool = defineTool({
@@ -9,16 +10,13 @@ export const getAlertsTool = defineTool({
     'late arrival (遅刻), early leave (早退), overtime threshold (残業時間閾値超え), 36 agreement (36協定), and missing man-hours (工数未入力). ' +
     'Optionally filter by month.',
   inputSchema: z.object({
-    month: z
-      .string()
-      .regex(/^\d{4}-\d{2}$/, 'Use YYYY-MM')
-      .optional()
-      .describe('Only alerts for this month (YYYY-MM).'),
+    month: monthSchema.optional().describe('Only alerts for this month (YYYY-MM).'),
   }),
   capability: 'alerts.read',
   audience: 'everyone',
   kind: 'read',
   handler: async (input, ctx) => {
+    if (input.month) assertMonth(input.month);
     const all = await ctx.backend.getAlerts();
     const alerts = input.month
       ? all.filter((a) => (a.month ?? a.date?.slice(0, 7)) === input.month)

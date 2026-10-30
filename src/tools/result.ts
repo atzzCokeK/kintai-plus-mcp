@@ -66,6 +66,12 @@ function apiHint(error: KintaiApiError): string {
     case 'not_found':
       return 'The requested item was not found. Check the IDs (staff, project, task) and the date.';
     case 'invalid_request':
+      if (error.apiErrors.some((e) => e.message?.includes('従業員IDは必ず入力してください'))) {
+        return (
+          'Kintai Plus also returns 「従業員IDは必ず入力してください」 when a staff ID does not exist ' +
+          'or is outside the staff you manage. It does not always mean staffIds was omitted. Check the IDs with list_staff.'
+        );
+      }
       return 'Kintai Plus rejected the request. Check the parameters (dates, IDs, period length).';
     case 'rate_limited':
       return 'Too many requests. Wait a minute before trying again.';

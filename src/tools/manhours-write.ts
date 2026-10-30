@@ -32,7 +32,7 @@ export const saveManhoursTool = defineTool({
     date: dateSchema.describe('Date (YYYY-MM-DD).'),
     entries: z
       .array(
-        z.object({
+        z.strictObject({
           projectId: z.number().int().positive(),
           taskId: z.number().int().positive(),
           minutes: z

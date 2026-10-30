@@ -47,14 +47,24 @@ export async function selectCredentialStore(
   return fallback;
 }
 
+export interface ImportFromEnvOptions {
+  /**
+   * true のときだけ保存先へ書く。既定は false。
+   * 環境変数のトークンを再発行すると、その値が使えなくなるため、明示したときだけ引き取る。
+   */
+  persist?: boolean;
+}
+
 /**
- * 保存先が空のときだけ、環境変数から認証情報を取り込む。以降は保存先を正とする。
- * 戻り値は保存先にある（または取り込んだ）認証情報。どちらもなければ undefined。
+ * 保存先が空のとき、環境変数から認証情報を読む。
+ * 既定では保存しない。`persist: true` のときだけ保存し、以降は保存先を正とする。
+ * 保存先に既にあれば、環境変数は無視して保存先を返す。
  */
 export async function importFromEnv(
   store: CredentialStore,
   env: Env = process.env,
   now: Date = new Date(),
+  options: ImportFromEnvOptions = {},
 ): Promise<Credentials | undefined> {
   const existing = await store.load();
   if (existing) return existing;
@@ -75,6 +85,45 @@ export async function importFromEnv(
     token,
     updatedAt: now.toISOString(),
   };
-  await store.save(credentials);
+  if (options.persist) await store.save(credentials);
   return credentials;
+}
+
+/**
+ * 保存先が空のあいだ、環境変数のトークンをメモリ上だけで返す。
+ * 保存先に認証情報が入ったあと（login など）は保存先を読む。書き出しは保存先に既にあるときだけ。
+ */
+export class EnvFallbackStore implements CredentialStore {
+  readonly #inner: CredentialStore;
+  #fallback: Credentials | undefined;
+
+  constructor(inner: CredentialStore, fallback: Credentials) {
+    this.#inner = inner;
+    this.#fallback = fallback;
+  }
+
+  get kind() {
+    return this.#inner.kind;
+  }
+
+  get location() {
+    return this.#inner.location;
+  }
+
+  async load(): Promise<Credentials | undefined> {
+    return (await this.#inner.load()) ?? this.#fallback;
+  }
+
+  async save(credentials: Credentials): Promise<void> {
+    if (await this.#inner.load()) {
+      await this.#inner.save(credentials);
+      return;
+    }
+    this.#fallback = credentials;
+  }
+
+  async clear(): Promise<boolean> {
+    this.#fallback = undefined;
+    return this.#inner.clear();
+  }
 }

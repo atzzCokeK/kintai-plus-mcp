@@ -15,6 +15,11 @@ export interface Config {
   logLevel: LogLevel;
   /** API リクエストの最小間隔（ミリ秒） */
   minIntervalMs: number;
+  /**
+   * 環境変数のトークンを保存し、期限が不明なら再発行する。
+   * 既定は false（そのプロセスの中だけで使い、再発行しない）。
+   */
+  persistEnvToken: boolean;
 }
 
 const LOG_LEVELS: readonly LogLevel[] = ['debug', 'info', 'warn', 'error', 'silent'];
@@ -28,6 +33,7 @@ export function loadConfig(env: Env = process.env): Config {
     includeLocation: bool(env, 'KINTAI_PLUS_INCLUDE_LOCATION', false),
     logLevel: oneOf(env, 'KINTAI_PLUS_LOG_LEVEL', LOG_LEVELS, 'info'),
     minIntervalMs: int(env, 'KINTAI_PLUS_MIN_INTERVAL_MS', 300, 100, 60_000),
+    persistEnvToken: bool(env, 'KINTAI_PLUS_PERSIST_ENV_TOKEN', false),
   };
 }
 

@@ -123,6 +123,46 @@ describe('get_team_stamps', () => {
     ]);
   });
 
+  it('管理下にいない staffIds は API を呼ばず、誤解を招く案内にしない', async () => {
+    let called = false;
+    const b = backend({
+      getTeamStamps: async () => {
+        called = true;
+        return { stamps: [], truncated: false };
+      },
+    });
+    await expect(
+      getTeamStampsTool.handler({ staffIds: [1, 999] }, fakeContext(b, {}, NOW)),
+    ).rejects.toThrow(/999/);
+    await expect(
+      getTeamStampsTool.handler({ staffIds: [999] }, fakeContext(b, {}, NOW)),
+    ).rejects.toThrow(/list_staff/);
+    expect(called).toBe(false);
+  });
+
+  it('従業員一覧が途中まで、または取れないときは ID を拒否せず API に渡す', async () => {
+    const seen: number[][] = [];
+    const truncated = backend({
+      listStaff: async () => ({ staff: staff.slice(0, 1), totalCount: 1000, truncated: true }),
+      getTeamStamps: async (_date: string, ids: number[]) => {
+        seen.push(ids);
+        return { stamps: [], truncated: false };
+      },
+    });
+    await getTeamStampsTool.handler({ staffIds: [999] }, fakeContext(truncated, {}, NOW));
+    const failed = backend({
+      listStaff: async () => {
+        throw new Error('staff list down');
+      },
+      getTeamStamps: async (_date: string, ids: number[]) => {
+        seen.push(ids);
+        return { stamps: [], truncated: false };
+      },
+    });
+    await getTeamStampsTool.handler({ staffIds: [999] }, fakeContext(failed, {}, NOW));
+    expect(seen).toEqual([[999], [999]]);
+  });
+
   it('includeStamps で打刻も返す（位置情報は除く）。過去の日は終日で数える', async () => {
     const b = backend({
       getTeamStamps: async () => ({
