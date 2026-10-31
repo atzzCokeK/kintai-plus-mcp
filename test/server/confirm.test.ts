@@ -54,7 +54,7 @@ async function connect(
   return client;
 }
 
-describe('CONFIRM_WRITES', () => {
+describe('KINTAI_PLUS_CONFIRM_WRITES', () => {
   it('既定では確認しない', async () => {
     const client = await connect({});
     const res = await client.callTool('do_write', { what: 'x' });
@@ -64,7 +64,7 @@ describe('CONFIRM_WRITES', () => {
 
   it('有効なら Elicitation で確認し、承認されたら実行する', async () => {
     const client = await connect(
-      { CONFIRM_WRITES: 'true' },
+      { KINTAI_PLUS_CONFIRM_WRITES: 'true' },
       { action: 'accept', content: { confirm: true } },
     );
     const res = await client.callTool('do_write', { what: 'x' });
@@ -81,7 +81,7 @@ describe('CONFIRM_WRITES', () => {
       { action: 'cancel' },
       { action: 'accept', content: { confirm: false } },
     ]) {
-      const client = await connect({ CONFIRM_WRITES: 'true' }, answer);
+      const client = await connect({ KINTAI_PLUS_CONFIRM_WRITES: 'true' }, answer);
       const res = await client.callTool('do_write', { what: 'x' });
       expect(res.isError).toBe(true);
       expect(res.text).toMatch(/cancel/i);
@@ -91,14 +91,14 @@ describe('CONFIRM_WRITES', () => {
   });
 
   it('クライアントが Elicitation に対応していなければ実行しない', async () => {
-    const client = await connect({ CONFIRM_WRITES: 'true' }, undefined, {});
+    const client = await connect({ KINTAI_PLUS_CONFIRM_WRITES: 'true' }, undefined, {});
     const res = await client.callTool('do_write', { what: 'x' });
     expect(res.isError).toBe(true);
     expect(executed).toBe(0);
   });
 
   it('読み取りツールは確認しない', async () => {
-    const client = await connect({ CONFIRM_WRITES: 'true' });
+    const client = await connect({ KINTAI_PLUS_CONFIRM_WRITES: 'true' });
     expect((await client.callTool('do_read')).json).toEqual({ ok: true });
     expect(client.serverRequests).toEqual([]);
   });

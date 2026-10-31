@@ -57,7 +57,7 @@
 - プロンプトは stderr に出す。トークン入力中は readline のエコーを止める
 - パイプ入力では、readline が質問の前に届いた行を捨ててしまうため、読んだ行をキューに溜めて順に渡す（`src/cli/io.ts`）
 - `login` は「自分の従業員情報の取得で疎通確認 → 再発行で有効期限を確定（ADR 0007）→ 保存」。再発行に失敗しても疎通できたトークンは期限不明で保存する。管理者の `GET /staffs` は一覧なので、保存済みの staffId が無く一覧が 1 人に決まらないときは `GET /stamps` の `staff_id` で自分を決める（2026-10-29 確認）
-- 環境設定: `KINTAI_PLUS_REFRESH_DAYS`（1〜30、既定 15）、`KINTAI_PLUS_AUTO_REFRESH`、`KINTAI_PLUS_PERSIST_ENV_TOKEN`（既定 false）、`KINTAI_PLUS_READ_ONLY`、`CONFIRM_WRITES`、`KINTAI_PLUS_INCLUDE_LOCATION`、`KINTAI_PLUS_LOG_LEVEL`、`KINTAI_PLUS_MIN_INTERVAL_MS`（100〜60000、既定 300）。`src/config.ts`
+- 環境設定: `KINTAI_PLUS_REFRESH_DAYS`（1〜30、既定 15）、`KINTAI_PLUS_AUTO_REFRESH`、`KINTAI_PLUS_PERSIST_ENV_TOKEN`（既定 false）、`KINTAI_PLUS_READ_ONLY`、`KINTAI_PLUS_CONFIRM_WRITES`（旧名 `CONFIRM_WRITES` も読む）、`KINTAI_PLUS_INCLUDE_LOCATION`、`KINTAI_PLUS_LOG_LEVEL`、`KINTAI_PLUS_MIN_INTERVAL_MS`（100〜60000、既定 300）。`src/config.ts`
 
 ## MCP サーバー（T6）
 
@@ -70,7 +70,7 @@
 
 ## 書き込みの確認（T8）
 
-- 書き込みツールは事前チェックの後、書き込みの直前に `ctx.confirm(message)` を呼ぶ。`CONFIRM_WRITES=true` のときだけ効く
+- 書き込みツールは事前チェックの後、書き込みの直前に `ctx.confirm(message)` を呼ぶ。`KINTAI_PLUS_CONFIRM_WRITES=true` のときだけ効く
 - 仕組み: `confirm` が内部シグナルを投げ → `createMcpServer` の包みが `inputRequired({ inputRequests: { confirm: inputRequired.elicit(...) } })` を返す → クライアントが回答付きで再呼び出し → `inputResponse(ctx.mcpReq.inputResponses, 'confirm')` で承認なら続行、拒否・キャンセルなら `ToolRefusedError`
 - 旧プロトコル（2025 年版）の接続では、SDK の legacy shim（既定で有効）が同じ戻り値を `elicitation/create` に変換して同じハンドラを再実行する。クライアントが elicitation を宣言していなければ `isError` の結果になり、書き込みは行われない
 - 再実行のたびに事前チェック（打刻の矛盾、締め・確定）もやり直される
