@@ -1,5 +1,11 @@
 # kintai-plus-mcp
 
+## 0.1.2
+
+### Patch Changes
+
+- [#21](https://github.com/atzzCokeK/kintai-plus-mcp/pull/21) [`eeccc19`](https://github.com/atzzCokeK/kintai-plus-mcp/commit/eeccc197c66324c1e362c05dc99574406009eac7) Thanks [@atzzCokeK](https://github.com/atzzCokeK)! - Rename the `CONFIRM_WRITES` environment variable to `KINTAI_PLUS_CONFIRM_WRITES` to match the other settings. `CONFIRM_WRITES` is still read when the new name is not set.
+
 ## 0.1.1
 
 ### Patch Changes
