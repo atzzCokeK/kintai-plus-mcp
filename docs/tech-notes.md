@@ -55,7 +55,7 @@
 
 - `src/cli/main.ts` の `runCli(argv, deps)` が本体。入出力・API・サーバー起動は差し替え可能（テストは偽の fetch と一時ディレクトリのファイル保存で通しで確認）
 - プロンプトは stderr に出す。トークン入力中は readline のエコーを止める
-- 対話端末の `login` は接続先を番号で選ぶ（`src/cli/host-prompt.ts`）。1 が `atnd.ak4.jp`（既定）、2 が `atnd-awj.ak4.jp`。空 Enter は既定。既知のホスト名やログイン URL を貼っても受け付ける。未知のホスト用の自由入力は置かない（受け付ける接続先は `API_HOSTS` の 2 つだけ。増えたら一覧も増える）。非 TTY と `--host` はこれまで通りホスト名か URL の 1 行で、番号は解釈しない。空なら `atnd.ak4.jp`。`KINTAI_PLUS_HOST` は起動時の環境変数で、この質問とは別
+- 対話端末の `login` は接続先を ↑/↓ と Enter で選ぶ（`src/cli/arrow-select.ts`）。最初に選ばれているのは `atnd.ak4.jp`。Ctrl+C は終了コード 130 で、エラー文は出さない。選択のあいだだけ stdin を raw mode にし、終わるときに戻す。企業 ID の readline は選択の前に閉じ、トークン入力で開き直す。プロンプト用ライブラリは使わない（企業 ID とトークンで既に readline を持っていて、2 項目のために stdin を二重にしない）。非 TTY と `--host` はこれまで通りホスト名か URL の 1 行で、空なら `atnd.ak4.jp`。`KINTAI_PLUS_HOST` は起動時の環境変数で、この質問とは別
 - パイプ入力では、readline が質問の前に届いた行を捨ててしまうため、読んだ行をキューに溜めて順に渡す（`src/cli/io.ts`）
 - `login` は「自分の従業員情報の取得で疎通確認 → 再発行で有効期限を確定（ADR 0007）→ 保存」。再発行に失敗しても疎通できたトークンは期限不明で保存する。管理者の `GET /staffs` は一覧なので、保存済みの staffId が無く一覧が 1 人に決まらないときは `GET /stamps` の `staff_id` で自分を決める（2026-10-29 確認）
 - 環境設定: `KINTAI_PLUS_REFRESH_DAYS`（1〜30、既定 15）、`KINTAI_PLUS_AUTO_REFRESH`、`KINTAI_PLUS_PERSIST_ENV_TOKEN`（既定 false）、`KINTAI_PLUS_READ_ONLY`、`KINTAI_PLUS_CONFIRM_WRITES`（旧名 `CONFIRM_WRITES` も読む）、`KINTAI_PLUS_INCLUDE_LOCATION`、`KINTAI_PLUS_LOG_LEVEL`、`KINTAI_PLUS_MIN_INTERVAL_MS`（100〜60000、既定 300）。`src/config.ts`

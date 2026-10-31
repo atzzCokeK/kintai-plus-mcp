@@ -1,16 +1,26 @@
 import { createInterface, type Interface } from 'node:readline';
 import { Writable } from 'node:stream';
+import { type KeypressInput, promptArrowSelect } from './arrow-select.ts';
 import type { CliIO } from './main.ts';
 
 /**
  * 端末用の入出力。プロンプトは stderr に出し、トークン入力中はエコーを止める。
  * パイプからの入力でも行を取りこぼさないよう、読んだ行はキューに溜める。
+ * 矢印選択の前に readline を閉じ、終わったら raw mode を戻して次の質問で開き直す。
  */
-export function createNodeIO(): CliIO & { close(): void } {
+export function createNodeIO(streams?: {
+  input?: KeypressInput;
+  stdout?: NodeJS.WritableStream;
+  stderr?: NodeJS.WritableStream;
+}): CliIO & { close(): void } {
+  const input = streams?.input ?? process.stdin;
+  const stdout = streams?.stdout ?? process.stdout;
+  const stderr = streams?.stderr ?? process.stderr;
+
   let muted = false;
   const output = new Writable({
     write(chunk, _encoding, callback) {
-      if (!muted) process.stderr.write(chunk);
+      if (!muted) stderr.write(chunk);
       callback();
     },
   });
@@ -18,20 +28,33 @@ export function createNodeIO(): CliIO & { close(): void } {
   const lines: string[] = [];
   const waiters: Array<(line: string | undefined) => void> = [];
   let closed = false;
+  let releasing = false;
   let rl: Interface | undefined;
 
   const start = () => {
     if (rl) return;
-    rl = createInterface({ input: process.stdin, output, terminal: process.stdin.isTTY === true });
+    rl = createInterface({ input, output, terminal: input.isTTY === true });
     rl.on('line', (line) => {
       const waiter = waiters.shift();
       if (waiter) waiter(line);
       else lines.push(line);
     });
     rl.on('close', () => {
+      if (releasing) return;
       closed = true;
+      rl = undefined;
       for (const waiter of waiters.splice(0)) waiter(undefined);
     });
+  };
+
+  const releaseReadline = () => {
+    const current = rl;
+    if (!current) return;
+    releasing = true;
+    current.close();
+    releasing = false;
+    rl = undefined;
+    closed = false;
   };
 
   const nextLine = (): Promise<string> => {
@@ -46,26 +69,30 @@ export function createNodeIO(): CliIO & { close(): void } {
 
   return {
     stdout: (text) => {
-      process.stdout.write(text);
+      stdout.write(text);
     },
     stderr: (text) => {
-      process.stderr.write(text);
+      stderr.write(text);
     },
     async prompt(question) {
-      process.stderr.write(question);
+      stderr.write(question);
       return nextLine();
     },
     async promptSecret(question) {
-      process.stderr.write(question);
+      stderr.write(question);
       muted = true;
       try {
         return await nextLine();
       } finally {
         muted = false;
-        if (process.stdin.isTTY) process.stderr.write('\n');
+        if (input.isTTY) stderr.write('\n');
       }
     },
-    interactive: process.stdin.isTTY === true,
+    promptSelect(spec) {
+      releaseReadline();
+      return promptArrowSelect({ ...spec, input, output: stderr });
+    },
+    interactive: input.isTTY === true,
     close: () => rl?.close(),
   };
 }
