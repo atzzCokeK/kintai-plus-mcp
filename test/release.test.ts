@@ -57,13 +57,45 @@ describe('Release ワークフロー', () => {
   const workflow = readFileSync('.github/workflows/release.yml', 'utf8');
 
   it('未処理の changeset があるときは公開しない（バージョンを上げた作業ツリーで未リリース版を公開しないため）', () => {
-    expect(workflow).toMatch(/uses: changesets\/action@v1\n\s+id: changesets/);
+    expect(workflow).toMatch(
+      /uses: changesets\/action@[0-9a-f]{40} # v2\.[0-9.]+\n\s+id: changesets/,
+    );
     const check = workflow.slice(
       workflow.indexOf('- name: Check whether this version is published'),
     );
     expect(check.split('\n').slice(0, 3).join('\n')).toContain(
-      "if: steps.changesets.outputs.hasChangesets == 'false'",
+      "if: steps.changesets.outputs.has-changesets == 'false'",
     );
+  });
+
+  it('changesets/action v2 の入力名を使う（v1 の version / title / commit や GITHUB_TOKEN の env は効かない）', () => {
+    const step = workflow.slice(
+      workflow.indexOf('- name: Create version PR'),
+      workflow.indexOf('- name: Check whether this version is published'),
+    );
+    expect(step).toContain('version-script: pnpm version-packages');
+    expect(step).toContain('pr-title: "chore: release"');
+    expect(step).toContain('commit-message: "chore: release"');
+    expect(step).not.toContain('GITHUB_TOKEN');
+  });
+
+  it('npm と mcp-publisher は版を固定し、mcp-publisher はチェックサムを確かめる', () => {
+    expect(workflow).toMatch(/npm install -g npm@\d+\.\d+\.\d+\b/);
+    expect(workflow).not.toContain('npm@latest');
+    expect(workflow).toMatch(
+      /releases\/download\/v\d+\.\d+\.\d+\/mcp-publisher_linux_amd64\.tar\.gz/,
+    );
+    expect(workflow).not.toContain('releases/latest');
+    expect(workflow).toMatch(
+      /[0-9a-f]{64}\s+mcp-publisher_linux_amd64\.tar\.gz" \| sha256sum -c -/,
+    );
+  });
+
+  it('公開の権限を持つので、依存のキャッシュを使わない', () => {
+    const setupNode = workflow.slice(workflow.indexOf('uses: actions/setup-node@'));
+    const block = setupNode.slice(0, setupNode.indexOf('- run:'));
+    expect(block).not.toMatch(/^\s+cache: /m);
+    expect(block).toContain('package-manager-cache: false');
   });
 
   it('MCP Registry に登録する前に、npm に新しい版が見えるまで待つ（直後だと Registry の検証で 404 になるため）', () => {
@@ -76,4 +108,19 @@ describe('Release ワークフロー', () => {
     // biome-ignore lint/suspicious/noTemplateCurlyInString: GitHub Actions の式をそのまま探している
     expect(step).toContain('npm view "kintai-plus-mcp@${{ steps.check.outputs.version }}" version');
   });
+});
+
+describe('ワークフローのアクション', () => {
+  for (const file of ['ci.yml', 'release.yml']) {
+    it(`${file} のアクションはコミット SHA で固定し、版をコメントで残す`, () => {
+      const uses = [
+        ...readFileSync(`.github/workflows/${file}`, 'utf8').matchAll(/uses: (\S+)(.*)/g),
+      ];
+      expect(uses.length).toBeGreaterThan(0);
+      for (const [, ref, rest] of uses) {
+        expect(ref).toMatch(/^[\w.-]+\/[\w.-]+@[0-9a-f]{40}$/);
+        expect(rest).toMatch(/^ # v\d+\.\d+\.\d+$/);
+      }
+    });
+  }
 });
