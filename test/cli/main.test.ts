@@ -2,7 +2,8 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { type CliDeps, runCli } from '../../src/cli/main.ts';
+import { HOST_SELECT_MESSAGE } from '../../src/cli/host-prompt.ts';
+import { type CliDeps, type CliIO, runCli } from '../../src/cli/main.ts';
 import { VERSION } from '../../src/version.ts';
 
 const TOKEN = 'pasted-token-abcdef';
@@ -19,26 +20,46 @@ afterEach(async () => {
   await rm(dir, { recursive: true, force: true });
 });
 
+interface SelectSpec {
+  message: string;
+  defaultValue: string;
+  labels: string[];
+  hints: string[];
+}
+
 interface Harness {
   deps: CliDeps;
   out: string[];
   err: string[];
+  prompts: string[];
+  selections: SelectSpec[];
   answers: string[];
   requests: string[];
   served: number;
 }
 
 function harness(
-  options: { answers?: string[]; fetch?: typeof fetch; env?: Record<string, string> } = {},
+  options: {
+    answers?: string[];
+    fetch?: typeof fetch;
+    env?: Record<string, string>;
+    /** 省略時は非 TTY（ホスト名の 1 行入力） */
+    interactive?: boolean;
+    /** 対話の接続先選択。'cancel' は Ctrl+C */
+    selectAnswers?: Array<string | 'cancel'>;
+  } = {},
 ): Harness {
   const h: Harness = {
     out: [],
     err: [],
+    prompts: [],
+    selections: [],
     answers: [...(options.answers ?? [])],
     requests: [],
     served: 0,
     deps: undefined as never,
   };
+  const selectAnswers = [...(options.selectAnswers ?? [])];
   const defaultFetch: typeof fetch = async (input, init) => {
     const url = new URL(String(input));
     h.requests.push(`${init?.method} ${url.pathname}`);
@@ -62,8 +83,23 @@ function harness(
     io: {
       stdout: (s) => h.out.push(s),
       stderr: (s) => h.err.push(s),
-      prompt: async () => h.answers.shift() ?? '',
+      prompt: async (question) => {
+        h.prompts.push(question);
+        return h.answers.shift() ?? '';
+      },
       promptSecret: async () => h.answers.shift() ?? '',
+      promptSelect: (async (spec) => {
+        h.selections.push({
+          message: spec.message,
+          defaultValue: spec.defaultValue,
+          labels: spec.choices.map((choice) => choice.label),
+          hints: spec.choices.map((choice) => choice.hint ?? ''),
+        });
+        const answer = selectAnswers.shift();
+        if (answer === undefined || answer === 'cancel') return { status: 'cancelled' };
+        return { status: 'selected', value: answer };
+      }) as CliIO['promptSelect'],
+      interactive: options.interactive ?? false,
     },
     runtimeOptions: {
       env: {
@@ -140,11 +176,86 @@ describe('runCli', () => {
       expect(saved).toMatchObject({ companyId: 'acme', host: 'atnd.ak4.jp' });
     });
 
-    it('接続先を空で入力したら atnd.ak4.jp', async () => {
-      const h = harness({ answers: ['acme', '', TOKEN] });
+    it('非 TTY ではホスト名の 1 行のまま。空なら atnd.ak4.jp', async () => {
+      const h = harness({ interactive: false, answers: ['acme', '', TOKEN] });
       expect(await runCli(['login'], h.deps)).toBe(0);
       const saved = JSON.parse(await readFile(credentialsFile, 'utf8'));
       expect(saved.host).toBe('atnd.ak4.jp');
+      expect(h.prompts[1]).toBe(
+        '接続先（ログイン後の URL のドメイン）[atnd.ak4.jp / atnd-awj.ak4.jp]: ',
+      );
+      expect(h.selections).toEqual([]);
+    });
+
+    it('非 TTY では番号を選ばない（1 は接続先にならない）', async () => {
+      const h = harness({ interactive: false, answers: ['acme', '1'] });
+      expect(await runCli(['login'], h.deps)).toBe(1);
+      expect(h.err.join('')).toContain(
+        '接続先は atnd.ak4.jp か atnd-awj.ak4.jp を指定してください。',
+      );
+    });
+
+    it('対話端末では ↑/↓ で選び、最初の項目は atnd.ak4.jp', async () => {
+      const h = harness({
+        interactive: true,
+        answers: ['acme', TOKEN],
+        selectAnswers: ['atnd.ak4.jp'],
+      });
+      expect(await runCli(['login'], h.deps)).toBe(0);
+      const saved = JSON.parse(await readFile(credentialsFile, 'utf8'));
+      expect(saved.host).toBe('atnd.ak4.jp');
+      expect(h.prompts).toEqual(['ログイン企業ID: ']);
+      expect(h.selections).toEqual([
+        {
+          message: HOST_SELECT_MESSAGE,
+          defaultValue: 'atnd.ak4.jp',
+          labels: ['atnd.ak4.jp', 'atnd-awj.ak4.jp'],
+          hints: [
+            'https://atnd.ak4.jp/ でログインしている（既定）',
+            'https://atnd-awj.ak4.jp/ でログインしている',
+          ],
+        },
+      ]);
+    });
+
+    it('対話端末で atnd-awj.ak4.jp を選ぶ', async () => {
+      const h = harness({
+        interactive: true,
+        answers: ['acme', TOKEN],
+        selectAnswers: ['atnd-awj.ak4.jp'],
+      });
+      expect(await runCli(['login'], h.deps)).toBe(0);
+      const saved = JSON.parse(await readFile(credentialsFile, 'utf8'));
+      expect(saved.host).toBe('atnd-awj.ak4.jp');
+    });
+
+    it('対話端末の Ctrl+C はエラー文を出さず 130', async () => {
+      const h = harness({ interactive: true, answers: ['acme'], selectAnswers: ['cancel'] });
+      expect(await runCli(['login'], h.deps)).toBe(130);
+      expect(allOutput(h)).not.toMatch(/エラー/);
+      await expect(readFile(credentialsFile)).rejects.toThrow();
+    });
+
+    it('対話中でも --host を渡せば接続先を聞かない', async () => {
+      const h = harness({ interactive: true, answers: [TOKEN] });
+      expect(
+        await runCli(['login', '--company-id', 'acme', '--host', 'atnd-awj.ak4.jp'], h.deps),
+      ).toBe(0);
+      expect(h.selections).toEqual([]);
+      expect(h.prompts.join('\n')).not.toMatch(/接続先/);
+      expect(JSON.parse(await readFile(credentialsFile, 'utf8')).host).toBe('atnd-awj.ak4.jp');
+    });
+
+    it('--host が不正なら、対話端末でも矢印選択は出さない', async () => {
+      const h = harness({ interactive: true });
+      expect(
+        await runCli(['login', '--company-id', 'acme', '--host', 'evil.example.com'], h.deps),
+      ).toBe(1);
+      expect(h.prompts).toEqual([]);
+      expect(h.selections).toEqual([]);
+      expect(h.err.join('')).toContain(
+        '接続先は atnd.ak4.jp か atnd-awj.ak4.jp を指定してください。',
+      );
     });
 
     it('無効なトークン（404 ERR300002）は再発行を案内する', async () => {
