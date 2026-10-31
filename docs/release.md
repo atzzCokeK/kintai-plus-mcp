@@ -23,3 +23,4 @@
 
 - `server.json` のバージョンは `pnpm version-packages` で package.json に合わせる（`test/release.test.ts` がずれを検出する）
 - npm の Trusted Publishing には npm CLI 11.5.1 以上が必要（ワークフローで最新にしている）
+- 公開は「未処理の changeset がないとき」だけ行う。changeset が残っていると changesets/action が作業ツリーのバージョンを上げるため、その状態で公開すると未リリースの版が出てしまう（2026-10-30 に 0.1.1 を公開しかけた。npm 側の設定がなく失敗したので実害はなし）

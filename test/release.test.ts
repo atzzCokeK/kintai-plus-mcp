@@ -51,3 +51,17 @@ describe('syncServerJson', () => {
     });
   });
 });
+
+describe('Release ワークフロー', () => {
+  const workflow = readFileSync('.github/workflows/release.yml', 'utf8');
+
+  it('未処理の changeset があるときは公開しない（バージョンを上げた作業ツリーで未リリース版を公開しないため）', () => {
+    expect(workflow).toMatch(/uses: changesets\/action@v1\n\s+id: changesets/);
+    const check = workflow.slice(
+      workflow.indexOf('- name: Check whether this version is published'),
+    );
+    expect(check.split('\n').slice(0, 3).join('\n')).toContain(
+      "if: steps.changesets.outputs.hasChangesets == 'false'",
+    );
+  });
+});
