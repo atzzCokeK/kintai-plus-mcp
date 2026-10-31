@@ -29,7 +29,11 @@ export function loadConfig(env: Env = process.env): Config {
     refreshBeforeDays: int(env, 'KINTAI_PLUS_REFRESH_DAYS', 15, 1, 30),
     autoRefresh: bool(env, 'KINTAI_PLUS_AUTO_REFRESH', true),
     readOnly: bool(env, 'KINTAI_PLUS_READ_ONLY', false),
-    confirmWrites: bool(env, 'CONFIRM_WRITES', false),
+    // 0.1 では接頭辞なしの CONFIRM_WRITES だったので、新しい名前がないときは旧名も読む
+    confirmWrites:
+      read(env, 'KINTAI_PLUS_CONFIRM_WRITES') !== undefined
+        ? bool(env, 'KINTAI_PLUS_CONFIRM_WRITES', false)
+        : bool(env, 'CONFIRM_WRITES', false),
     includeLocation: bool(env, 'KINTAI_PLUS_INCLUDE_LOCATION', false),
     logLevel: oneOf(env, 'KINTAI_PLUS_LOG_LEVEL', LOG_LEVELS, 'info'),
     minIntervalMs: int(env, 'KINTAI_PLUS_MIN_INTERVAL_MS', 300, 100, 60_000),

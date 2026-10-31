@@ -165,7 +165,7 @@ args = ["-y", "kintai-plus-mcp"]
 | 変数 | 既定 | 内容 |
 |---|---|---|
 | `KINTAI_PLUS_READ_ONLY` | `false` | `true` で書き込みツール（打刻・工数）を出さない |
-| `CONFIRM_WRITES` | `false` | `true` で書き込みの前に確認ダイアログを出す（Elicitation に対応したクライアントのみ。未対応のクライアントでは書き込みが失敗します） |
+| `KINTAI_PLUS_CONFIRM_WRITES` | `false` | `true` で書き込みの前に確認ダイアログを出す（Elicitation に対応したクライアントのみ。未対応のクライアントでは書き込みが失敗します）。旧名の `CONFIRM_WRITES` も当面は読みます |
 | `KINTAI_PLUS_INCLUDE_LOCATION` | `false` | `true` で打刻の位置情報・IP を返す |
 | `KINTAI_PLUS_REFRESH_DAYS` | `15` | 有効期限の残りがこの日数を切ったら再発行する（1〜30） |
 | `KINTAI_PLUS_AUTO_REFRESH` | `true` | `false` で自動の再発行を止める |

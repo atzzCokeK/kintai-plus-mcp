@@ -10,7 +10,7 @@ export interface ToolContext {
   logger: Logger;
   now: () => Date;
   /**
-   * 書き込みの直前に呼ぶ。CONFIRM_WRITES=true のときはユーザーに確認し（Elicitation）、
+   * 書き込みの直前に呼ぶ。KINTAI_PLUS_CONFIRM_WRITES=true のときはユーザーに確認し（Elicitation）、
    * 拒否されたら例外で中止する。無効のときは何もしない。
    */
   confirm(message: string): Promise<void>;

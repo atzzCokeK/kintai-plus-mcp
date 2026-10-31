@@ -63,7 +63,7 @@
 ## T8. 書き込み系ツール
 - [x] `punch`（種別必須、その日の打刻履歴との矛盾チェック、`force`、テレワーク）
 - [x] `save_manhours` / `delete_manhours`
-- [x] `CONFIRM_WRITES=true` 時の Elicitation による確認
+- [x] `KINTAI_PLUS_CONFIRM_WRITES=true`（旧名 `CONFIRM_WRITES`）時の Elicitation による確認
 
 ## T9. 管理者向けツール
 - [x] `list_staff`（ページ送りを自動化）
