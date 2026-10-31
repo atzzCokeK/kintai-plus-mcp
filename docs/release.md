@@ -7,7 +7,9 @@
 1. Public 化の前に `docs/` を見直す（tasks.md T12。社内情報・個人情報・未公開の判断が残っていないか）
 2. リポジトリを Public にする
 3. npm に `kintai-plus-mcp` を初回公開する（Trusted Publisher はパッケージが存在しないと設定できないため）
-   - 手元で `pnpm build && npm publish --access public`（2FA）。このときは provenance は付かない
+   - Node 22 以上で `rm -rf node_modules && pnpm install --frozen-lockfile && pnpm test && pnpm build`（`pnpm exec node -v` で pnpm が使う Node も確認する。古い Node で入れた node_modules が残っていると rolldown の native binding が見つからずに失敗する）
+   - npm アカウントの 2 段階認証を有効にしてから `npm publish --access public --provenance=false --otp=<6 桁>`。package.json で provenance を有効にしているが、provenance は CI の中でしか作れないので手元では外す
+   - 公開後に `npm view kintai-plus-mcp version bin` で bin が残っていることを確認し、`git tag v<version> <commit> && git push origin v<version>`
    - もしくは、npm の「Trusted Publisher」を新規パッケージにも設定できる場合は、それを使う
 4. npm のパッケージ設定 > Trusted Publisher に GitHub Actions を登録する
    - Organization/user: `atzzCokeK`、Repository: `kintai-plus-mcp`、Workflow: `release.yml`
