@@ -84,3 +84,9 @@
 - `pnpm e2e --record` で応答を `e2e/.local/responses/` に保存する（gitignore 済み。トークンは伏せるが個人情報は残る）
 - フィクスチャ化: `pnpm anonymize <file> [out]`（= `node e2e/anonymize.ts`）で氏名・カナ・社員番号・メール・名称・コメント・位置情報・IP・トークン・企業 ID を架空の値にしてから、目で確認して置く
 - e2e/ は tsconfig の対象（型チェックされる）だが、Vitest の対象外・npm パッケージにも含めない
+
+## pnpm（2026-10-31）
+
+- pnpm 10 系（`packageManager: pnpm@10.34.9`）。ロックファイルは v9 形式。CI と Release は `pnpm/action-setup` が `packageManager` を読んで同じ版を入れる
+- pnpm 10 は依存パッケージのインストール時スクリプトを既定で実行しない。今の依存（`@napi-rs/keyring`・Biome・rolldown など）はネイティブ部分を optional の別パッケージで配るので影響はない（`pnpm install` で「Ignored build scripts」が出ないことを確認済み）。出るようになったら `pnpm approve-builds` で個別に許可する
+- 手元で pnpm を使うときは、pnpm が使う Node（`pnpm exec node -v`）も 22 以上か確認する
