@@ -19,7 +19,7 @@
   },
   "type": "module",
   "bin": {
-    "kintai-plus-mcp": "./dist/cli.mjs"
+    "kintai-plus-mcp": "dist/cli.mjs"
   },
   "files": [
     "dist"

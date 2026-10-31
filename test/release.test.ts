@@ -29,7 +29,8 @@ describe('server.json（MCP Registry）', () => {
 describe('package.json', () => {
   it('公開設定: provenance 付き・public', () => {
     expect(pkg.publishConfig).toMatchObject({ access: 'public', provenance: true });
-    expect(pkg.bin['kintai-plus-mcp']).toBe('./dist/cli.mjs');
+    // npm 12 は ./ 付きの bin を書き直し、「invalid and removed」と紛らわしい警告を出すので、./ なしで書く
+    expect(pkg.bin['kintai-plus-mcp']).toBe('dist/cli.mjs');
     expect(pkg.files).toEqual(['dist']);
   });
 });
