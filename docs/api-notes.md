@@ -1,7 +1,7 @@
 # クラウド勤怠Plus 公開 API メモ
 
 一次情報: [マネーフォワード クラウド勤怠Plus 公開API 仕様](https://akashi.zendesk.com/hc/ja/articles/115000475854)
-（仕様の文章は 2026-10-27 に確認。応答の形は 2026-10-29 に `atnd.ak4.jp` への読み取り専用の疎通で確認した。仕様はブラウザで公式ヘルプを読む。問い合わせ先: attendance-plus.feedback@moneyforward.com）
+（仕様の文章は公式ヘルプで確認した。応答の形は、自分の API トークンを使った読み取り専用の呼び出しで確認した。仕様についての問い合わせ先: attendance-plus.feedback@moneyforward.com）
 
 ここには実装に必要な事実だけを要約する。細かい項目は必ず一次情報で確認すること。
 
@@ -75,7 +75,7 @@
 
 ## 未確認事項
 
-2026-10-29 の読み取り調査で、上の表と各 API の項に書いた形は確認した。次はまだ仮定のまま動いている。必要なら `pnpm e2e --record` で確認する。
+読み取り専用の呼び出しで、上の表と各 API の項に書いた形は確認した。次はまだ仮定のまま動いている（確認は [#24](https://github.com/atzzCokeK/kintai-plus-mcp/issues/24) で管理）。必要なら `pnpm e2e --record` で確認する。
 
 - DELETE（工数削除）でのトークンと条件の渡し方。実装はクエリに載せている
 - 工数取得の期間パラメータが効くか、上限は何か（`start_date` / `end_date`、`yyyy/mm/dd` と仮定。31 日ごとに分割している）
