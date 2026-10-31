@@ -2,7 +2,7 @@ name: Release
 
 # main への push で:
 # 1. 未リリースの changeset があれば「バージョンを上げる PR」を作る（changesets/action）
-# 2. package.json のバージョンが npm に未公開なら、Trusted Publishing（OIDC）で provenance 付きで公開し、
+# 2. 未処理の changeset がなく（= バージョン PR がマージされた後）、package.json のバージョンが npm に未公開なら、Trusted Publishing（OIDC）で provenance 付きで公開し、
 #    タグを打ち、MCP Registry にも公開する
 # npm のトークンは置かない。初回だけは手作業が必要（docs/release.md）。
 
@@ -42,6 +42,7 @@ jobs:
 
       - name: Create version PR
         uses: changesets/action@v1
+        id: changesets
         with:
           version: pnpm version-packages
           title: "chore: release"
@@ -49,7 +50,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      # 未処理の changeset があると、上のステップで作業ツリーのバージョンが上がっている。
+      # その状態で公開すると未リリースの版が出てしまうので、changeset がないときだけ公開を検討する
       - name: Check whether this version is published
+        if: steps.changesets.outputs.hasChangesets == 'false'
         id: check
         run: |
           VERSION=$(node -p "require('./package.json').version")
