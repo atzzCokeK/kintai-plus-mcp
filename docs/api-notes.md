@@ -1,7 +1,7 @@
 # クラウド勤怠Plus 公開 API メモ
 
 一次情報: [マネーフォワード クラウド勤怠Plus 公開API 仕様](https://akashi.zendesk.com/hc/ja/articles/115000475854)
-（仕様の文章は 2026-10-27 に確認。応答の形は 2026-10-29 に `atnd.ak4.jp` への読み取り専用の疎通で確認した。仕様はブラウザで公式ヘルプを読む。問い合わせ先: attendance-plus.feedback@moneyforward.com）
+（仕様の文章は公式ヘルプで確認した。応答の形は、自分の API トークンを使った読み取り専用の呼び出しで確認した。仕様についての問い合わせ先: attendance-plus.feedback@moneyforward.com）
 
 ここには実装に必要な事実だけを要約する。細かい項目は必ず一次情報で確認すること。
 

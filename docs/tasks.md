@@ -4,13 +4,13 @@
 
 ## 現在の状況
 
-- 最終更新: 2026-10-29
-- v0.1.0 は main にある（ツール 19、プロンプト 4）。npm と MCP Registry にはまだ出していない。
-- 公開 API の読み取り応答は `atnd.ak4.jp` で確認済み。残っている仮定は [api-notes.md](./api-notes.md) の「未確認事項」。
+- 最終更新: 2026-10-31
+- 0.1.0 を npm に公開した（初回は手元から。npm の段階的公開で承認してから `latest` になった）。タグ `v0.1.0` は打った
+- 0.1.1 は Release ワークフローからの公開待ち。provenance はソースのリポジトリが Public でないと付けられないため、リポジトリを Public にしてから再実行する
 - 次に行うこと:
-  1. npm への初回公開、Trusted Publishing、MCP Registry への登録、リポジトリの公開（手順は [release.md](./release.md)）
+  1. リポジトリを Public にし、失敗した Release を再実行して 0.1.1 の公開と MCP Registry への登録を確認する
   2. 未確認の API（工数の期間、DELETE の渡し方、`staff_projects` の要素、プロジェクトとタスクの page、`staff_ids` の上限、勤務処理ラベルの中身）を、必要なら `pnpm e2e --record` で確認する
-  3. ブラウザモード（申請・スケジュール）は ADR 0001 のとおり後回し。ログイン方法と利用規約を整理してから着手する
+  3. ブラウザモード（申請・スケジュール）は ADR 0001 のとおり、提供元の利用規約で認められることを確認できた場合に限り検討する
 
 ## T1. リポジトリ基盤
 - [x] package.json（`bin: kintai-plus-mcp`、Node 22+、ESM）、tsconfig、tsdown、Vitest、Biome
@@ -88,4 +88,4 @@
 - [x] 打刻漏れチェック `check_attendance_issues`（夜勤は 16 時間以内なら 1 つの勤務として扱う。範囲の前日の打刻も見る）
 - [x] 残業リスク検出 `find_overtime_risks`（管理者向け、月末の着地予測。ここまでの出勤日あたりのペース × 残りの平日。祝日は考慮しない）
 - [x] 定型プロンプト（MCP Prompts）: `end_of_day` / `log_manhours` / `monthly_review` / `team_status`。使うツールが公開されているときだけ出す
-- [ ] ブラウザモード（申請・スケジュール、API を使えない人向け）。ADR 0001。ログイン方法と利用規約を整理してから着手する
+- [ ] ブラウザモード（申請・スケジュール、API を使えない人向け）。ADR 0001。提供元の利用規約で認められることを確認できた場合に限り検討する

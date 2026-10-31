@@ -6,11 +6,11 @@ describe('anonymize', () => {
     success: true,
     response: {
       staffId: 101,
-      lastName: '本田',
-      firstName: '圭',
-      lastNameKana: 'ホンダ',
-      firstNameKana: 'ケイ',
-      email: 'kei.honda@real-company.co.jp',
+      lastName: '仮山',
+      firstName: '太一',
+      lastNameKana: 'カリヤマ',
+      firstNameKana: 'タイチ',
+      email: 'taichi.kariyama@sample-corp.example',
       staffNum: 'A-99812',
       organization: { organizationId: 5, name: '経営企画本部' },
       managedOrganizations: [{ organizationId: 6, name: '人事部' }],
@@ -27,11 +27,11 @@ describe('anonymize', () => {
   it('氏名・カナ・メール・社員番号・部署名・位置情報・IP・トークンを架空の値にする', () => {
     const out = JSON.stringify(anonymize(raw));
     for (const secret of [
-      '本田',
-      '圭',
-      'ホンダ',
-      'ケイ',
-      'real-company',
+      '仮山',
+      '太一',
+      'カリヤマ',
+      'タイチ',
+      'sample-corp',
       'A-99812',
       '経営企画本部',
       '人事部',
