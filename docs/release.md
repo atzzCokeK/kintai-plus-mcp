@@ -22,7 +22,8 @@
 
 1. 変更を入れる PR で `pnpm changeset` を実行し、changeset ファイルをコミットする
 2. main にマージすると、Release ワークフローが「chore: release」PR を作る（バージョン・CHANGELOG・server.json を更新）。Actions が作った PR なので、CI の実行に承認が要ることがある
-3. その PR をマージすると、npm に provenance 付きで公開し、`v<version>` タグを打ち、MCP Registry に公開する
+3. その PR をマージすると、npm に provenance 付きで公開し、`v<version>` タグを打ち、npm に新しい版が見えるまで待ってから MCP Registry に公開する
+4. MCP Registry への登録だけが失敗した場合（npm の段階的公開で承認待ちになったときなど）は、ワークフローを再実行しても「公開済み」と判断されて登録まで進まない。npm で版が見えることを確認してから、main をチェックアウトした手元で `mcp-publisher login github && mcp-publisher publish` を実行する
 
 ## 確認すること
 

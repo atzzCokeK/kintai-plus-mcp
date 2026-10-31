@@ -76,6 +76,23 @@ jobs:
           git tag "v${{ steps.check.outputs.version }}"
           git push origin "v${{ steps.check.outputs.version }}"
 
+      # 公開直後は npm に新しい版がまだ見えず、MCP Registry の検証が 404 で失敗するので、見えるまで待つ。
+      # 段階的公開（staged publishing）で承認待ちになった場合はここで失敗する。承認後に手元で
+      # `mcp-publisher login github && mcp-publisher publish` を実行する（docs/release.md）
+      - name: Wait for the version on npm
+        if: steps.check.outputs.publish == 'true'
+        run: |
+          for i in $(seq 1 30); do
+            if npm view "kintai-plus-mcp@${{ steps.check.outputs.version }}" version >/dev/null 2>&1; then
+              echo "kintai-plus-mcp@${{ steps.check.outputs.version }} is visible on npm"
+              exit 0
+            fi
+            echo "Waiting for kintai-plus-mcp@${{ steps.check.outputs.version }} on npm ($i/30)"
+            sleep 10
+          done
+          echo "kintai-plus-mcp@${{ steps.check.outputs.version }} did not appear on npm. If it is waiting for staged-publishing approval, approve it and register it in the MCP Registry by hand."
+          exit 1
+
       - name: Publish to MCP Registry
         if: steps.check.outputs.publish == 'true'
         run: |

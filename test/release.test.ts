@@ -65,4 +65,15 @@ describe('Release ワークフロー', () => {
       "if: steps.changesets.outputs.hasChangesets == 'false'",
     );
   });
+
+  it('MCP Registry に登録する前に、npm に新しい版が見えるまで待つ（直後だと Registry の検証で 404 になるため）', () => {
+    const wait = workflow.indexOf('- name: Wait for the version on npm');
+    const registry = workflow.indexOf('- name: Publish to MCP Registry');
+    expect(wait).toBeGreaterThan(-1);
+    expect(wait).toBeLessThan(registry);
+    const step = workflow.slice(wait, registry);
+    expect(step).toContain("if: steps.check.outputs.publish == 'true'");
+    // biome-ignore lint/suspicious/noTemplateCurlyInString: GitHub Actions の式をそのまま探している
+    expect(step).toContain('npm view "kintai-plus-mcp@${{ steps.check.outputs.version }}" version');
+  });
 });
