@@ -1,5 +1,11 @@
 # kintai-plus-mcp
 
+## 0.1.3
+
+### Patch Changes
+
+- [#33](https://github.com/atzzCokeK/kintai-plus-mcp/pull/33) [`b3bd57e`](https://github.com/atzzCokeK/kintai-plus-mcp/commit/b3bd57e011a2dcd1f7f7ee5b9b3b8ef068879bc4) Thanks [@atzzCokeK](https://github.com/atzzCokeK)! - `login` on a terminal lets you choose the API host with the arrow keys. `atnd.ak4.jp` is highlighted by default; move to `atnd-awj.ak4.jp` with the down arrow and confirm with Enter. `--host` and non-interactive input still accept a host name or URL.
+
 ## 0.1.2
 
 ### Patch Changes
