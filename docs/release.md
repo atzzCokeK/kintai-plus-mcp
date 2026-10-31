@@ -30,3 +30,5 @@
 - `server.json` のバージョンは `pnpm version-packages` で package.json に合わせる（`test/release.test.ts` がずれを検出する）
 - npm の Trusted Publishing には npm CLI 11.5.1 以上が必要（ワークフローで更新している）
 - 公開は「未処理の changeset がないとき」だけ行う。changeset が残っていると changesets/action が作業ツリーのバージョンを上げるため、その状態で公開すると未リリースの版が出てしまう（`test/release.test.ts` でこの条件を確認している）
+- ワークフローのアクションはコミット SHA で固定し、版をコメントで残す（`test/release.test.ts` で確認）。更新は Dependabot（`.github/dependabot.yml`）の PR で受け取る。npm と mcp-publisher も版を固定し、mcp-publisher はチェックサムを確かめる。mcp-publisher を上げるときは、リリースの `registry_<版>_checksums.txt` から `mcp-publisher_linux_amd64.tar.gz` の値を写す
+- Release ワークフローは公開の権限（id-token）を持つので、依存のキャッシュを使わない（`package-manager-cache: false`）

@@ -25,14 +25,15 @@ jobs:
       pull-requests: write # バージョン PR
       id-token: write # npm Trusted Publishing / provenance と MCP Registry の OIDC
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: pnpm/action-setup@d9184bf108216479bc5a137cc391f4d7b14c870b # v6.1.0
+      # 公開の権限（id-token）を持つジョブなので、依存のキャッシュは使わない（キャッシュ経由の汚染を避ける）
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
-          cache: pnpm
+          package-manager-cache: false
           registry-url: https://registry.npmjs.org
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
@@ -41,19 +42,17 @@ jobs:
       - run: pnpm build
 
       - name: Create version PR
-        uses: changesets/action@v1
+        uses: changesets/action@66d7d1ddafddf1ef45f98ee51a7496f9cdadb2f4 # v2.1.2
         id: changesets
         with:
-          version: pnpm version-packages
-          title: "chore: release"
-          commit: "chore: release"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          version-script: pnpm version-packages
+          pr-title: "chore: release"
+          commit-message: "chore: release"
 
       # 未処理の changeset があると、上のステップで作業ツリーのバージョンが上がっている。
       # その状態で公開すると未リリースの版が出てしまうので、changeset がないときだけ公開を検討する
       - name: Check whether this version is published
-        if: steps.changesets.outputs.hasChangesets == 'false'
+        if: steps.changesets.outputs.has-changesets == 'false'
         id: check
         run: |
           VERSION=$(node -p "require('./package.json').version")
@@ -67,7 +66,7 @@ jobs:
       - name: Publish to npm (Trusted Publishing + provenance)
         if: steps.check.outputs.publish == 'true'
         run: |
-          npm install -g npm@latest
+          npm install -g npm@12.2.1
           npm publish --provenance --access public
 
       - name: Tag release
@@ -96,6 +95,8 @@ jobs:
       - name: Publish to MCP Registry
         if: steps.check.outputs.publish == 'true'
         run: |
-          curl -fsSL "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_linux_amd64.tar.gz" | tar xz mcp-publisher
+          curl -fsSLO "https://github.com/modelcontextprotocol/registry/releases/download/v1.8.7/mcp-publisher_linux_amd64.tar.gz"
+          echo "00b21004149a4ce66f0782508ae4a2bce67d1bea395a8da0bd8028159fb59579  mcp-publisher_linux_amd64.tar.gz" | sha256sum -c -
+          tar xzf mcp-publisher_linux_amd64.tar.gz mcp-publisher
           ./mcp-publisher login github-oidc
           ./mcp-publisher publish
