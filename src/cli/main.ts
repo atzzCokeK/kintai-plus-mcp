@@ -1,5 +1,5 @@
 import { parseArgs } from 'node:util';
-import { type Connection, isValidCompanyId, parseApiHost } from '../api/endpoint.ts';
+import { type ApiHost, type Connection, isValidCompanyId, parseApiHost } from '../api/endpoint.ts';
 import { KintaiApiError } from '../api/errors.ts';
 import { fetchMyStaff, permissionRole, type StaffSummary } from '../api/staff.ts';
 import { reissueToken } from '../api/token.ts';
@@ -9,6 +9,12 @@ import { createRuntime, type Runtime, type RuntimeOptions } from '../runtime.ts'
 import { formatIsoDateTime } from '../time/datetime.ts';
 import { ROLE_LABEL } from '../tools/labels.ts';
 import { VERSION } from '../version.ts';
+import {
+  DEFAULT_API_HOST,
+  formatInteractiveHostPrompt,
+  interactiveHostError,
+  parseHostSelection,
+} from './host-prompt.ts';
 
 export interface CliIO {
   stdout(text: string): void;
@@ -16,6 +22,8 @@ export interface CliIO {
   prompt(question: string): Promise<string>;
   /** 入力内容を画面に表示しない */
   promptSecret(question: string): Promise<string>;
+  /** 端末からの対話。false のときは接続先を番号ではなく文字列で読む。 */
+  interactive: boolean;
 }
 
 export interface CliDeps {
@@ -87,15 +95,8 @@ async function login(args: readonly string[], deps: CliDeps): Promise<number> {
     return 1;
   }
 
-  const hostInput = (
-    values.host ??
-    (await io.prompt('接続先（ログイン後の URL のドメイン）[atnd.ak4.jp / atnd-awj.ak4.jp]: '))
-  ).trim();
-  const host = parseApiHost(hostInput === '' ? 'atnd.ak4.jp' : hostInput);
-  if (!host) {
-    io.stderr('接続先は atnd.ak4.jp か atnd-awj.ak4.jp を指定してください。\n');
-    return 1;
-  }
+  const host = await readLoginHost(io, values.host);
+  if (!host) return 1;
 
   const token = (await io.promptSecret('APIトークン（入力は表示されません）: ')).trim();
   if (token === '') {
@@ -154,6 +155,29 @@ async function login(args: readonly string[], deps: CliDeps): Promise<number> {
     ].join('\n'),
   );
   return 0;
+}
+
+const NONINTERACTIVE_HOST_PROMPT =
+  '接続先（ログイン後の URL のドメイン）[atnd.ak4.jp / atnd-awj.ak4.jp]: ';
+const HOST_VALUE_ERROR = '接続先は atnd.ak4.jp か atnd-awj.ak4.jp を指定してください。\n';
+
+/** `--host` と非 TTY はホスト名のまま。対話端末だけ番号で選ぶ。 */
+async function readLoginHost(io: CliIO, flagged: string | undefined): Promise<ApiHost | undefined> {
+  if (flagged !== undefined) {
+    return parseHostValue(flagged, io);
+  }
+  if (io.interactive) {
+    const host = parseHostSelection(await io.prompt(formatInteractiveHostPrompt()));
+    if (!host) io.stderr(interactiveHostError());
+    return host;
+  }
+  return parseHostValue(await io.prompt(NONINTERACTIVE_HOST_PROMPT), io);
+}
+
+function parseHostValue(input: string, io: CliIO): ApiHost | undefined {
+  const host = parseApiHost(input.trim() === '' ? DEFAULT_API_HOST : input);
+  if (!host) io.stderr(HOST_VALUE_ERROR);
+  return host;
 }
 
 function loginFailureMessage(error: unknown): string {

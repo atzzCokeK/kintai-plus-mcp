@@ -65,6 +65,7 @@ export function createNodeIO(): CliIO & { close(): void } {
         if (process.stdin.isTTY) process.stderr.write('\n');
       }
     },
+    interactive: process.stdin.isTTY === true,
     close: () => rl?.close(),
   };
 }
