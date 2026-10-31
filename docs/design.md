@@ -47,7 +47,7 @@
 - 打刻の種別は必須（API の「省略時に出勤/退勤を自動切り替え」は使わない）。
 - その日の打刻履歴と矛盾する打刻は弾く。`force: true` で実行可能。
 - 書き込みツールは `destructiveHint` を申告する。
-- 任意で `CONFIRM_WRITES=true`（Elicitation で確認）と読み取り専用モードを選べる。
+- 任意で `KINTAI_PLUS_CONFIRM_WRITES=true`（Elicitation で確認）と読み取り専用モードを選べる。0.1 では `CONFIRM_WRITES` という名前だった。ほかの設定と同じ接頭辞に揃えるため改名し、旧名も当面は読む（2026-10-31）。
 
 ## データの扱い
 

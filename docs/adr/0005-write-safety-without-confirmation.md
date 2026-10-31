@@ -15,4 +15,4 @@
 - 打刻の種別は必須にし、API の「省略時に自動切り替え」は使わない。
 - その日の打刻履歴と矛盾する打刻は弾く。`force: true` で実行可能。
 - 書き込みツールは `destructiveHint` を申告する。
-- 任意で `CONFIRM_WRITES=true`（Elicitation で確認）と読み取り専用モードを用意する。
+- 任意で `KINTAI_PLUS_CONFIRM_WRITES=true`（0.1 での名前は `CONFIRM_WRITES`）（Elicitation で確認）と読み取り専用モードを用意する。

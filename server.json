@@ -51,7 +51,7 @@
           "default": "false"
         },
         {
-          "name": "CONFIRM_WRITES",
+          "name": "KINTAI_PLUS_CONFIRM_WRITES",
           "description": "Ask for confirmation (elicitation) before punches and man-hour changes",
           "isRequired": false,
           "format": "boolean",
