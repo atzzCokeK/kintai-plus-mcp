@@ -29,9 +29,10 @@ export const getStampsTool = defineTool({
   name: 'get_stamps',
   title: 'Get my punch history',
   description:
-    'Get your own punch history (打刻履歴) for a period: clock in (出勤), clock out (退勤), direct in/out (直行/直帰), break start/end (休憩入/休憩戻). ' +
-    `Defaults to today. Long periods are fetched in chunks automatically (max ${MAX_STAMP_DAYS} days). ` +
-    'Location and IP address are omitted by default.',
+    'Raw punch history (打刻履歴) for yourself: clock_in 出勤, clock_out 退勤, direct_in/out 直行/直帰, break_start/end 休憩入/休憩戻. ' +
+    `Defaults: from=today, to=from, Japan time (YYYY-MM-DD). Max ${MAX_STAMP_DAYS} days, fetched in chunks. ` +
+    "Use get_today_status for today's state in one glance, and close_out for what to fix. Use this when you need the timestamps. " +
+    'Location and IP are omitted unless KINTAI_PLUS_INCLUDE_LOCATION=true.',
   inputSchema: z.object({
     from: dateSchema.optional().describe('Start date (YYYY-MM-DD, Japan time). Defaults to today.'),
     to: dateSchema.optional().describe('End date, inclusive (YYYY-MM-DD). Defaults to `from`.'),
@@ -61,8 +62,10 @@ export const getTodayStatusTool = defineTool({
   name: 'get_today_status',
   title: "Get today's work status",
   description:
-    "Get today's work status (今日の勤務状況) in Japan time: not_started (未出勤), working (勤務中), on_break (休憩中), or finished (退勤済み), " +
-    "with time worked so far (excluding breaks), break time, and today's punches. Use this before punching.",
+    'Live status for today only (Japan time, Asia/Tokyo): not_started 未出勤 / working 勤務中 / on_break 休憩中 / finished 退勤済み, ' +
+    'minutes worked so far (breaks excluded), break minutes, and today\'s punches. No arguments; "today" is never a date you pass. ' +
+    'Call this immediately before punch to see which type is legal. ' +
+    'For the end-of-day checklist (short breaks, man-hours, overtime, alerts), use close_out scope=day instead of chaining tools.',
   inputSchema: z.object({}),
   capability: 'stamps.read',
   audience: 'everyone',

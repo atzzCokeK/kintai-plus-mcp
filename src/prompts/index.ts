@@ -1,5 +1,5 @@
 import * as z from 'zod/v4';
-import { addDays, todayInTokyo } from '../time/datetime.ts';
+import { todayInTokyo } from '../time/datetime.ts';
 
 /**
  * 定型プロンプト（MCP Prompts）。クライアントのメニューから呼び出す、よくある頼み方のひな形。
@@ -28,17 +28,19 @@ export const ALL_PROMPTS: readonly PromptDefinition[] = [
   definePrompt({
     name: 'end_of_day',
     title: '退勤前チェック',
-    description: '今日の勤務と工数を確認し、工数の入力漏れがあれば入力してから退勤を打刻する',
+    description: '今日の締めを close_out で確認し、残件（休憩・工数・打刻）を処理してから退勤する',
     argsSchema: z.object({}),
-    requiredTools: ['get_today_status', 'get_manhours', 'save_manhours', 'punch'],
+    requiredTools: ['close_out', 'get_my_projects', 'list_tasks', 'save_manhours', 'punch'],
     build: (_args, now) => {
       const today = todayInTokyo(now);
       return [
-        `今日（${today}）の退勤前チェックをしてください。`,
-        '1. get_today_status で今日の勤務状況と勤務時間を確認する。休憩中なら先に休憩戻が必要か聞く。',
-        `2. get_manhours（from=${today}, to=${today}）で今日の工数を確認し、勤務時間と比べて入力漏れがないか見る。`,
-        '3. 足りなければ、何にどれくらい時間を使ったかを私に聞き、get_my_projects と list_tasks で ID を調べて save_manhours で入力する。',
-        '4. 最後に、退勤（clock_out）を打刻してよいか私に確認してから punch する。打刻は取り消せないので、確認なしに打刻しないこと。',
+        `今日（${today}、日本時間）の退勤前の締めをしてください。`,
+        '1. close_out（scope=day）を 1 回だけ呼ぶ。get_today_status や get_manhours を先に連ねなくてよい。',
+        '2. ok が true で items が空なら「対応は不要です」と伝えて終わる。headline をそのまま使ってよい。',
+        '3. items を priority 順に処理する。action に修正申請とある項目は Web 画面の案内だけして、punch しない。',
+        '4. 工数を入れるときは、何にどれくらい使ったかを私に聞き、get_my_projects と list_tasks で ID を調べ、一覧を見せてから save_manhours する。',
+        '5. 退勤（clock_out）や休憩戻（break_end）は、私に確認してから punch する。打刻は取り消せない。',
+        '6. overtime の数値は disclaimer のとおり目安である。',
       ].join('\n');
     },
   }),
@@ -70,28 +72,24 @@ export const ALL_PROMPTS: readonly PromptDefinition[] = [
   definePrompt({
     name: 'monthly_review',
     title: '月の振り返り',
-    description: '指定した月（既定は今月）の勤務時間・残業の目安・打刻漏れをまとめる',
+    description: '指定した月（既定は今月）を close_out で確認し、残件と残業の目安をまとめる',
     argsSchema: z.object({
       month: z
         .string()
         .regex(/^\d{4}-\d{2}$/)
         .optional()
-        .describe('月（YYYY-MM、既定は今月）'),
+        .describe('月（YYYY-MM、日本時間。既定は今月）'),
     }),
-    requiredTools: ['summarize_working_hours', 'check_attendance_issues', 'get_alerts'],
+    requiredTools: ['close_out'],
     build: (args, now) => {
       const today = todayInTokyo(now);
       const month = args.month ?? today.slice(0, 7);
-      const from = `${month}-01`;
-      const isCurrent = month === today.slice(0, 7);
-      const to = isCurrent ? today : undefined;
-      const range = to ? `from=${from}, to=${to}` : `from=${from}（その月の末日まで）`;
       return [
-        `${month} の勤務を振り返ってください。`,
-        `1. summarize_working_hours（${range}）で実働合計・出勤日数・休日出勤・法定時間外の目安を出す。`,
-        `2. check_attendance_issues（${isCurrent ? `from=${from}, to=${addDays(today, -1)}` : range}）で打刻漏れなどを確認する。`,
-        `3. get_alerts（month=${month}）でアラートを確認する。`,
-        '4. 結果を短くまとめ、直したほうがよい点（打刻修正の申請が必要な日など）を挙げる。残業は「目安」であることを必ず添える。',
+        `${month} の締めを確認してください。日付は日本時間です。`,
+        `1. close_out（scope=month, month=${month}）を 1 回だけ呼ぶ。summarize_working_hours、check_attendance_issues、get_alerts を別に連ねなくてよい。`,
+        '2. headline と items を短く伝える。ok が true で items が空なら「対応は不要です」と明言する。',
+        '3. 打刻の修正が必要な日は Web の修正申請。API の punch では過去を直せない。',
+        '4. overtime は目安なので disclaimer を添える。',
       ].join('\n');
     },
   }),

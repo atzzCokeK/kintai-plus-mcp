@@ -19,11 +19,16 @@ export const findOvertimeRisksTool = defineTool({
   name: 'find_overtime_risks',
   title: 'Find overtime risks in my team',
   description:
-    'Admin only. For staff you manage, estimate statutory overtime (法定時間外の目安) so far this month and project it to the month end ' +
-    '(月末の着地予測), then list who is over or likely to exceed the threshold (default 45 hours, the standard monthly limit under a 36 agreement). ' +
-    'Levels: over (already exceeded), likely (projected to exceed), watch (projected ≥ 80%). Always present results as estimates.',
+    'Admin only. For staff you manage, estimate statutory overtime (法定時間外の目安) so far this month and project it to month-end (月末の着地予測). ' +
+    'Lists who is over, likely to exceed, or at watch (projected ≥ 80% of thresholdHours, default 45, the standard 36-agreement month). ' +
+    'month defaults to the current month (YYYY-MM, Japan time). Counts through yesterday so today-in-progress is not included. ' +
+    'Always tell the user the numbers are estimates. For your own checklist use close_out, not this.',
   inputSchema: z.object({
-    month: monthSchema.optional().describe('Month (YYYY-MM). Defaults to the current month.'),
+    month: monthSchema
+      .optional()
+      .describe(
+        'Month (YYYY-MM, 01-12, Japan time). Defaults to the current month. Future months are rejected.',
+      ),
     staffIds: z
       .array(z.number().int().positive())
       .min(1)

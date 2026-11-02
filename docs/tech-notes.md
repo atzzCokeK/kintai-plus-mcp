@@ -7,6 +7,7 @@
 - 旧 `@modelcontextprotocol/sdk` に代わる安定版。ドキュメント: https://ts.sdk.modelcontextprotocol.io/v2/ （Context7 ID: `/websites/ts_sdk_modelcontextprotocol_io_v2`）
 - stdio は `serveStdio(factory)`（`@modelcontextprotocol/server/stdio`）。既定 `legacy: 'serve'` で 2025 年版プロトコルのクライアントにも同じファクトリで応答する。ファクトリは接続ごとに 1 回呼ばれ、`McpServer` を同期で返す
 - ツール登録: `server.registerTool(name, { title, description, inputSchema: z.object(...), outputSchema, annotations: { readOnlyHint, destructiveHint, idempotentHint } }, handler)`。zod は `import * as z from 'zod/v4'`
+- `outputSchema` を付けたツールは、成功時に `structuredContent` が必須で、SDK がスキーマ検証に失敗するとツール呼び出し自体がエラーになる（`isError` ではなくプロトコルエラー）。`close_out` だけ出力スキーマを公開している。成功したオブジェクトはスキーマの有無にかかわらず `structuredContent` にも載せ、本文の JSON テキストは従来どおり残す。失敗は `{ content, isError: true, structuredContent: { message, hint } }`
 - 失敗はハンドラから `{ content: [...], isError: true }` を返す（対処のヒントを本文に入れる）
 - Elicitation（確認ダイアログ）: 2026-07-28 版仕様では、ツールが `inputRequired({ inputRequests: { confirm: inputRequired.elicit({ message, requestedSchema }) } })` を返し、クライアントが回答付きで再呼び出しする方式。回答は `acceptedContent(ctx.mcpReq.inputResponses, 'confirm', schema)` で取り出す。クライアントが未対応だとエラー（-32021）になる。旧方式の `ctx.mcpReq.elicitInput()` は非推奨
 - 仕様上、Elicitation の form モードでパスワードやトークンを聞いてはいけない

@@ -59,6 +59,14 @@ describe('MCP Prompts', () => {
       .result as {
       messages: Array<{ content: { text: string } }>;
     };
-    expect(review.messages[0]?.content.text).toContain('2026-10');
+    const reviewText = review.messages[0]?.content.text ?? '';
+    expect(reviewText).toContain('2026-10');
+    expect(reviewText).toContain('close_out');
+
+    const end = (await client.request('prompts/get', { name: 'end_of_day', arguments: {} }))
+      .result as { messages: Array<{ content: { text: string } }> };
+    const endText = end.messages[0]?.content.text ?? '';
+    expect(endText).toContain('close_out');
+    expect(endText).toContain('2026-10-27');
   });
 });

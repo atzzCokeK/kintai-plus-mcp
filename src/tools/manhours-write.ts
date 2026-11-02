@@ -15,7 +15,7 @@ async function loadDay(date: LocalDate, ctx: ToolContext): Promise<ManhourDay | 
   if (day && (day.closed || day.fixed)) {
     throw new ToolRefusedError(
       `Man-hours for ${date} are already ${day.fixed ? 'fixed (確定)' : 'closed (締め)'} and cannot be changed.`,
-      'Ask the user to have it reopened in the Kintai Plus web UI if a change is needed.',
+      'Do not retry save_manhours or delete_manhours for this date. Ask the user to have the day reopened in the Kintai Plus web UI.',
     );
   }
   return day;
@@ -25,16 +25,23 @@ export const saveManhoursTool = defineTool({
   name: 'save_manhours',
   title: 'Save my man-hours',
   description:
-    'Create or update your own man-hours (工数) for one day: minutes per project task. ' +
-    'Only the listed tasks are overwritten; other tasks on that day are kept. To remove an entry, use delete_manhours. ' +
-    'Use list_projects / get_my_projects and list_tasks to find IDs. Days that are closed (締め) or fixed (確定) cannot be changed.',
+    'WRITE. Create or update YOUR man-hours (工数) for one date (YYYY-MM-DD, Japan time): minutes per project task. ' +
+    'Only the tasks you list are overwritten; other tasks that day are kept. Removing an entry is delete_manhours, not a zero. ' +
+    'Confirm the project, task, and minutes with the user before calling. Idempotent for the same entries. ' +
+    'Refuses a day that is closed (締め) or fixed (確定) — do not retry; it must be reopened in the web UI. ' +
+    'Find IDs with get_my_projects (prefer it over list_projects) and list_tasks. close_out tells you which dates are missing. ' +
+    'If this tool is not listed, the server is read-only (KINTAI_PLUS_READ_ONLY).',
   inputSchema: z.object({
-    date: dateSchema.describe('Date (YYYY-MM-DD).'),
+    date: dateSchema.describe('Date to save (YYYY-MM-DD, Japan time). Required. No default.'),
     entries: z
       .array(
         z.strictObject({
-          projectId: z.number().int().positive(),
-          taskId: z.number().int().positive(),
+          projectId: z.number().int().positive().describe('From get_my_projects or list_projects.'),
+          taskId: z
+            .number()
+            .int()
+            .positive()
+            .describe('From list_tasks for that projectId. Must belong to the project.'),
           minutes: z
             .number()
             .int()
@@ -141,17 +148,26 @@ export const deleteManhoursTool = defineTool({
   name: 'delete_manhours',
   title: 'Delete my man-hours',
   description:
-    'Delete your own man-hours (工数) for one day and project. If taskId is omitted, ALL tasks of that project on that day are deleted. ' +
-    'Days that are closed (締め) or fixed (確定) cannot be changed.',
+    'WRITE. Delete YOUR man-hours (工数) for one date (YYYY-MM-DD, Japan time) and projectId. ' +
+    'If taskId is omitted, ALL tasks of that project on that day are deleted — confirm that explicitly with the user. ' +
+    'Idempotent: deleting what is already gone returns deleted:false and changes nothing. ' +
+    'Closed (締め) or fixed (確定) days cannot be changed; do not retry. ' +
+    'If this tool is not listed, the server is read-only (KINTAI_PLUS_READ_ONLY).',
   inputSchema: z.object({
-    date: dateSchema.describe('Date (YYYY-MM-DD).'),
-    projectId: z.number().int().positive(),
+    date: dateSchema.describe('Date (YYYY-MM-DD, Japan time). Required.'),
+    projectId: z
+      .number()
+      .int()
+      .positive()
+      .describe('Project whose man-hours to delete. From get_manhours or get_my_projects.'),
     taskId: z
       .number()
       .int()
       .positive()
       .optional()
-      .describe('Task to delete. Omit to delete all tasks of the project.'),
+      .describe(
+        'One task to delete. Omit only when the user wants every task of this project on that day removed.',
+      ),
   }),
   capability: 'manhours.write',
   audience: 'everyone',

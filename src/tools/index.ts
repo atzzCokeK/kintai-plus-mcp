@@ -6,6 +6,7 @@ import {
 } from './admin.ts';
 import { getAlertsTool } from './alerts.ts';
 import { checkAttendanceIssuesTool } from './attendance-issues.ts';
+import { closeOutTool } from './close-out.ts';
 import { deleteManhoursTool, saveManhoursTool } from './manhours-write.ts';
 import { findOvertimeRisksTool } from './overtime-risks.ts';
 import { getMyProfileTool } from './profile.ts';
@@ -20,6 +21,7 @@ import { getWorkingRecordsTool } from './working-records.ts';
 export const ALL_TOOLS: readonly ToolDefinition[] = [
   getMyProfileTool,
   getTodayStatusTool,
+  closeOutTool,
   punchTool,
   getStampsTool,
   getWorkingRecordsTool,

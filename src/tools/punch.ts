@@ -12,12 +12,17 @@ export const punchTool = defineTool({
   name: 'punch',
   title: 'Punch the time clock',
   description:
-    'Record a punch (打刻) now: clock_in (出勤), clock_out (退勤), direct_in (直行), direct_out (直帰), break_start (休憩入), break_end (休憩戻). ' +
-    'The type is required. The punch is recorded at the time Kintai Plus receives it and CANNOT be edited or deleted via the API ' +
-    '(corrections need a request in the web UI), so confirm the type with the user if unsure. ' +
-    "Punches that conflict with today's history (e.g. clock_in when already clocked in) are refused; pass force: true only if the user insists.",
+    'WRITE now (打刻). type is required: clock_in 出勤, clock_out 退勤, direct_in 直行, direct_out 直帰, break_start 休憩入, break_end 休憩戻. ' +
+    'Recorded at the time Kintai Plus receives it. CANNOT be edited, deleted, or backdated — a mistake needs 修正申請 in the web UI, not another punch. ' +
+    'Not idempotent: every successful call adds a stamp. Confirm the type with the user. ' +
+    'Call get_today_status or close_out first. Conflicts with today (for example clock_in while already working, or clock_out while on a break) are refused; the error names the legal next type. ' +
+    'force: true only when the user explicitly insists. If this tool is not listed, the server is read-only (KINTAI_PLUS_READ_ONLY) — tell the user, do not retry.',
   inputSchema: z.object({
-    type: z.enum(STAMP_TYPES).describe('Punch type.'),
+    type: z
+      .enum(STAMP_TYPES)
+      .describe(
+        'Required. clock_in 出勤, clock_out 退勤, direct_in 直行, direct_out 直帰, break_start 休憩入, break_end 休憩戻. There is no default.',
+      ),
     telework: z
       .boolean()
       .optional()
@@ -32,6 +37,8 @@ export const punchTool = defineTool({
   capability: 'stamps.write',
   audience: 'everyone',
   kind: 'write',
+  /** 打刻は毎回新しい記録になる */
+  idempotent: false,
   handler: async (input, ctx) => {
     if (input.telework && input.type !== 'clock_in') {
       throw new ToolInputError('telework can only be set with clock_in (出勤).');

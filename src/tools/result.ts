@@ -6,6 +6,8 @@ import { NotLoggedInError, TokenExpiredError } from '../credentials/token-manage
 export interface ToolResult {
   [key: string]: unknown;
   content: Array<{ type: 'text'; text: string }>;
+  /** オブジェクトの成功結果。outputSchema があるツールでは SDK がこれを検証する */
+  structuredContent?: Record<string, unknown>;
   isError?: true;
 }
 
@@ -27,13 +29,26 @@ export class ToolRefusedError extends Error {
 }
 
 export function successResult(data: unknown): ToolResult {
-  return { content: [{ type: 'text', text: JSON.stringify(data) }] };
+  const text = JSON.stringify(data);
+  const structured =
+    typeof data === 'object' && data !== null && !Array.isArray(data)
+      ? { structuredContent: data as Record<string, unknown> }
+      : {};
+  return { content: [{ type: 'text', text }], ...structured };
 }
 
 export function errorResult(error: unknown): ToolResult {
   const [message, hint] = describeError(error);
-  const body = hint ? `${message}\nHint: ${hint}` : message;
-  return { isError: true, content: [{ type: 'text', text: redactSecrets(body) }] };
+  const safeMessage = redactSecrets(message);
+  const safeHint = hint === undefined ? undefined : redactSecrets(hint);
+  const body = safeHint ? `${safeMessage}\nHint: ${safeHint}` : safeMessage;
+  return {
+    isError: true,
+    content: [{ type: 'text', text: body }],
+    structuredContent: safeHint
+      ? { message: safeMessage, hint: safeHint }
+      : { message: safeMessage },
+  };
 }
 
 function describeError(error: unknown): [string, string?] {

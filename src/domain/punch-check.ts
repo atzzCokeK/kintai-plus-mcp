@@ -23,16 +23,18 @@ function reasonFor(state: DayState, type: StampType): string {
   const isIn = type === 'clock_in' || type === 'direct_in';
   switch (state) {
     case 'not_started':
-      return 'You have not clocked in today yet (未出勤).';
+      return 'You have not clocked in today yet (未出勤). Next: punch with type clock_in or direct_in.';
     case 'working':
       return isIn
-        ? 'You have already clocked in today (勤務中).'
-        : 'You are not on a break (勤務中).';
+        ? 'You have already clocked in today (勤務中). Next: punch break_start, clock_out, or direct_out. Do not punch clock_in again unless the user explicitly asks for force: true.'
+        : 'You are not on a break (勤務中). Next: punch break_start, clock_out, or direct_out. break_end is only valid while on a break.';
     case 'on_break':
-      if (isIn) return 'You have already clocked in and are on a break (休憩中).';
-      if (type === 'break_start') return 'You are already on a break (休憩中).';
+      if (isIn)
+        return 'You have already clocked in and are on a break (休憩中). Next: punch break_end.';
+      if (type === 'break_start')
+        return 'You are already on a break (休憩中). Next: punch break_end.';
       return 'You are on a break (休憩中). End the break (break_end / 休憩戻) first.';
     case 'finished':
-      return 'You have already clocked out today (退勤済み).';
+      return 'You have already clocked out today (退勤済み). The API cannot edit this punch. Next: 修正申請 in the Kintai Plus web UI, not another punch.';
   }
 }

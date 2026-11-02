@@ -12,6 +12,7 @@ describe('successResult', () => {
     const r = successResult({ a: 1, b: '日本語' });
     expect(r.isError).toBeUndefined();
     expect(JSON.parse(text(r))).toEqual({ a: 1, b: '日本語' });
+    expect(r.structuredContent).toEqual({ a: 1, b: '日本語' });
   });
 });
 

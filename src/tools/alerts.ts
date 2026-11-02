@@ -6,11 +6,15 @@ export const getAlertsTool = defineTool({
   name: 'get_alerts',
   title: 'Get my attendance alerts',
   description:
-    'Get your own attendance alerts (アラート) from Kintai Plus, such as missing punches (打刻忘れ), suspected absence (欠勤疑い), ' +
-    'late arrival (遅刻), early leave (早退), overtime threshold (残業時間閾値超え), 36 agreement (36協定), and missing man-hours (工数未入力). ' +
-    'Optionally filter by month.',
+    'Raw attendance alerts (アラート) Kintai Plus already raised for you: 打刻忘れ, 欠勤疑い, 遅刻, 早退, 残業時間閾値超え, 36協定, 工数未入力, 休憩不足, and others. ' +
+    'The API cannot filter; month (YYYY-MM, Japan time) is applied here. Omit month for every month the API returns. ' +
+    'close_out already folds the relevant alerts into a prioritized list — call get_alerts only when you need the raw rows.',
   inputSchema: z.object({
-    month: monthSchema.optional().describe('Only alerts for this month (YYYY-MM).'),
+    month: monthSchema
+      .optional()
+      .describe(
+        'Only alerts for this month (YYYY-MM, month 01-12, Japan time). Omit for all months returned by the API.',
+      ),
   }),
   capability: 'alerts.read',
   audience: 'everyone',

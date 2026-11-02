@@ -25,10 +25,10 @@ export const summarizeWorkingHoursTool = defineTool({
   name: 'summarize_working_hours',
   title: 'Summarize my working hours',
   description:
-    'Summarize your own working hours (勤務時間の集計) over a period: total actual working time (実働合計), work days (出勤日数), ' +
-    'holiday work days (休日出勤日数), and an ESTIMATE of statutory overtime (法定時間外の目安), with a per-month breakdown. ' +
-    `Defaults to the 1st of this month through today (max ${MAX_RECORD_DAYS} days). ` +
-    'Always tell the user the overtime figure is an estimate.',
+    'Totals for yourself over a period: working minutes, work days (出勤日数), holiday-work days (休日出勤), and an ESTIMATE of statutory overtime (法定時間外の目安), per month. ' +
+    `Defaults: the 1st of this month through today, Japan time, YYYY-MM-DD (max ${MAX_RECORD_DAYS} days). ` +
+    'Always repeat disclaimer to the user; the number is not an official overtime total. ' +
+    'Team risk is find_overtime_risks (admin). What the employee should fix is close_out, which already includes this estimate.',
   inputSchema: z.object({
     from: dateSchema
       .optional()
