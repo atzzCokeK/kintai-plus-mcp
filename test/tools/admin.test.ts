@@ -75,6 +75,29 @@ describe('list_staff', () => {
 });
 
 describe('get_team_stamps', () => {
+  it('過去の日は、その日の終わりまで勤務時間を数える', async () => {
+    const b = backend({
+      getTeamStamps: async () => ({
+        stamps: [
+          {
+            staffId: 1,
+            type: 'clock_in' as const,
+            typeCode: STAMP_TYPE_CODES.clock_in,
+            stampedAt: new Date('2026-10-26T09:00:00+09:00'),
+            attributes: {},
+          },
+        ],
+        truncated: false,
+      }),
+    });
+    const out = (await getTeamStampsTool.handler(
+      { date: '2026-10-26', staffIds: [1] },
+      fakeContext(b, {}, NOW),
+    )) as { staff: Array<{ state: string; workedMinutes: number }> };
+    // 09:00:00 から 23:59:59 まで。今（翌日 12:00）までは数えない。
+    expect(out.staff[0]).toMatchObject({ state: 'working', workedMinutes: 14 * 60 + 59 });
+  });
+
   it('既定は今日・管理下の全員。各人の状況をまとめて返す', async () => {
     const seen: unknown[] = [];
     const b = backend({

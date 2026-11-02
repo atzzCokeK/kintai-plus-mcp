@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { FileCredentialStore } from '../../src/credentials/file-store.ts';
-import { importFromEnv, selectCredentialStore } from '../../src/credentials/select.ts';
+import {
+  EnvFallbackStore,
+  importFromEnv,
+  selectCredentialStore,
+} from '../../src/credentials/select.ts';
 import type { CredentialStore, Credentials } from '../../src/credentials/types.ts';
 
 function fakeKeychain(available: boolean) {
@@ -141,5 +145,43 @@ describe('importFromEnv', () => {
     await expect(
       importFromEnv(store, { ...env, KINTAI_PLUS_COMPANY_ID: 'a/b' }, NOW),
     ).rejects.toThrow(/KINTAI_PLUS_COMPANY_ID/);
+  });
+});
+
+describe('EnvFallbackStore', () => {
+  const fallback: Credentials = {
+    version: 1,
+    host: 'atnd.ak4.jp',
+    companyId: 'acme',
+    token: 'env-token-123456',
+    updatedAt: '2026-10-27T00:00:00.000Z',
+  };
+
+  it('保存先が空のあいだはメモリだけを使い、save しても保存先に書かない', async () => {
+    const inner = memoryStore();
+    const store = new EnvFallbackStore(inner, fallback);
+    expect(store.kind).toBe('file');
+    expect(store.location).toBe('memory');
+    expect(await store.load()).toEqual(fallback);
+    await store.save({ ...fallback, token: 'rotated-in-memory' });
+    expect(inner.saved).toHaveLength(0);
+    expect((await store.load())?.token).toBe('rotated-in-memory');
+  });
+
+  it('保存先に認証情報があるときはそちらを読み、save もそちらへ書く', async () => {
+    const existing: Credentials = { ...fallback, token: 'stored-token-999' };
+    const inner = memoryStore(existing);
+    const store = new EnvFallbackStore(inner, fallback);
+    expect((await store.load())?.token).toBe('stored-token-999');
+    await store.save({ ...existing, token: 'rotated-token-111' });
+    expect(inner.saved.at(-1)?.token).toBe('rotated-token-111');
+  });
+
+  it('clear はメモリ上のトークンと保存先の両方を消す', async () => {
+    const inner = memoryStore({ ...fallback, token: 'stored-token-999' });
+    const store = new EnvFallbackStore(inner, fallback);
+    expect(await store.clear()).toBe(true);
+    expect(await store.load()).toBeUndefined();
+    expect(await inner.load()).toBeUndefined();
   });
 });

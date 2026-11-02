@@ -60,6 +60,35 @@ describe('createMcpServer', () => {
     expect(authErrors).toBe(1);
   });
 
+  it('403 や 429 ではトークンを読み直さない', async () => {
+    let authErrors = 0;
+    const denied = defineTool({
+      ...failing,
+      name: 'denied',
+      handler: async () => {
+        throw new KintaiApiError({ kind: 'forbidden', message: 'no' });
+      },
+    });
+    const limited = defineTool({
+      ...failing,
+      name: 'limited',
+      handler: async () => {
+        throw new KintaiApiError({ kind: 'rate_limited', message: 'slow' });
+      },
+    });
+    const server = createMcpServer(fakeContext(), [denied, limited], {
+      onAuthError: () => authErrors++,
+    });
+    const client = await connectTestClient(server);
+    close = client.close;
+    const forbidden = await client.callTool('denied', { n: 1 });
+    const rate = await client.callTool('limited', { n: 1 });
+    expect(forbidden.isError).toBe(true);
+    expect(forbidden.text).toMatch(/permission/i);
+    expect(rate.text).toMatch(/wait/i);
+    expect(authErrors).toBe(0);
+  });
+
   it('入力スキーマに合わない引数はエラーで返す', async () => {
     const client = await connectTestClient(createMcpServer(fakeContext(), [failing]));
     close = client.close;

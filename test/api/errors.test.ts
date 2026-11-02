@@ -119,6 +119,14 @@ describe('parseEnvelope', () => {
     expect(parseEnvelope(200, body)).toMatchObject({ results: [{ staff_id: '1002' }] });
   });
 
+  it('HTTP 200 でトークンと無関係な失敗は invalid_request', () => {
+    const body = JSON.stringify({
+      success: false,
+      errors: [{ code: 'X', message: '処理できませんでした' }],
+    });
+    expect(catchError(() => parseEnvelope(200, body)).kind).toBe('invalid_request');
+  });
+
   it('HTTP 200 でもトークンに関するエラーは auth に分類する', () => {
     const body = JSON.stringify({
       success: false,

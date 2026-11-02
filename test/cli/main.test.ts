@@ -338,6 +338,31 @@ describe('runCli', () => {
   });
 
   describe('status', () => {
+    it('権限確認が 401 でもトークンは出さず、失敗の種類だけを示す', async () => {
+      await writeFile(
+        credentialsFile,
+        JSON.stringify({
+          version: 1,
+          host: 'atnd.ak4.jp',
+          companyId: 'acme',
+          token: TOKEN,
+          expiresAt: '2026-12-31T00:00:00.000Z',
+          updatedAt: '2026-10-01T00:00:00.000Z',
+        }),
+        { mode: 0o600 },
+      );
+      const h = harness({
+        fetch: async () =>
+          Response.json(
+            { success: false, errors: [{ code: 'E', message: `bad ${TOKEN}` }] },
+            { status: 401 },
+          ),
+      });
+      expect(await runCli(['status'], h.deps)).toBe(1);
+      expect(h.out.join('')).toMatch(/auth/);
+      expect(allOutput(h)).not.toContain(TOKEN);
+    });
+
     it('未ログインなら案内して 1', async () => {
       const h = harness();
       expect(await runCli(['status'], h.deps)).toBe(1);

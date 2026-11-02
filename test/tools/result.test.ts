@@ -26,6 +26,9 @@ describe('errorResult', () => {
     [new KintaiApiError({ kind: 'invalid_request', message: 'bad date' }), /bad date/],
     [new KintaiApiError({ kind: 'rate_limited', message: 'x' }), /wait/i],
     [new KintaiApiError({ kind: 'network', message: 'x' }), /retry/i],
+    [new KintaiApiError({ kind: 'server', message: 'x' }), /retry/i],
+    [new KintaiApiError({ kind: 'timeout', message: 'x' }), /retry/i],
+    [new KintaiApiError({ kind: 'invalid_response', message: 'x' }), /unexpected response/i],
     [new LimitExceededError('too long'), /shorter|narrow/i],
     [new ToolInputError('from must be before to'), /from must be before to/],
   ])('%s は isError とヒントを返す', (error, pattern) => {

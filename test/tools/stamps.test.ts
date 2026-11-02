@@ -125,4 +125,43 @@ describe('get_today_status', () => {
     const out = await getTodayStatusTool.handler({}, fakeContext(backendWith([]), {}, NOW));
     expect(out).toMatchObject({ state: 'not_started', stateLabel: '未出勤', workedMinutes: 0 });
   });
+
+  it('UTC では前日でも、日本時間の今日として数える', async () => {
+    const seen: DateRange[] = [];
+    const now = new Date('2026-10-31T15:10:00Z'); // 2026-11-01 00:10 JST
+    const out = await getTodayStatusTool.handler(
+      {},
+      fakeContext(backendWith([s('clock_in', '2026-11-01T00:02:00+09:00')], seen), {}, now),
+    );
+    expect(seen).toEqual([{ from: '2026-11-01', to: '2026-11-01' }]);
+    expect(out).toMatchObject({
+      date: '2026-11-01',
+      now: '2026-11-01T00:10:00+09:00',
+      state: 'working',
+      workedMinutes: 8,
+      breakMinutes: 0,
+    });
+  });
+
+  it('3 分の休憩の直後は、休憩後の時間も足してから分に切り捨てる', async () => {
+    const now = new Date('2026-10-27T09:58:10+09:00');
+    const out = await getTodayStatusTool.handler(
+      {},
+      fakeContext(
+        backendWith([
+          s('clock_in', '2026-10-27T09:00:00+09:00'),
+          s('break_start', '2026-10-27T09:54:30+09:00'),
+          s('break_end', '2026-10-27T09:57:30+09:00'),
+        ]),
+        {},
+        now,
+      ),
+    );
+    expect(out).toMatchObject({
+      state: 'working',
+      workedMinutes: 55,
+      breakMinutes: 3,
+      now: '2026-10-27T09:58:10+09:00',
+    });
+  });
 });

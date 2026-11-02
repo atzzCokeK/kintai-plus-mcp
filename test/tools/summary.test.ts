@@ -6,6 +6,21 @@ import { fakeBackend, fakeContext } from '../helpers/fake-backend.ts';
 const NOW = new Date('2026-10-27T01:00:00Z');
 
 describe('summarize_working_hours', () => {
+  it('日本時間で 3 月 1 日の 0 時台は、3 月 1 日だけを見る', async () => {
+    const seen: DateRange[] = [];
+    const backend = fakeBackend({
+      getWorkingRecords: async (range) => {
+        seen.push(range);
+        return [];
+      },
+    });
+    await summarizeWorkingHoursTool.handler(
+      {},
+      fakeContext(backend, {}, new Date('2026-02-28T15:30:00Z')),
+    );
+    expect(seen).toEqual([{ from: '2026-03-01', to: '2026-03-01' }]);
+  });
+
   it('既定は今月 1 日〜今日。合計・月ごとの内訳・目安である旨を返す', async () => {
     const seen: DateRange[] = [];
     const backend = fakeBackend({
