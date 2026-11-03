@@ -3,6 +3,16 @@ import type { DateRange } from '../api/paging.ts';
 import { diffDays, isValidLocalDate, type LocalDate, todayInTokyo } from '../time/datetime.ts';
 import { ToolInputError } from './result.ts';
 
+/** 確認ダイアログを出せないクライアントが、プレビューのあとで書き込むための任意引数 */
+export const writeConfirmField = z
+  .boolean()
+  .optional()
+  .describe(
+    'Set true to apply this write when the client cannot show a confirmation dialog. ' +
+      'If confirmation is required and this is omitted, the tool returns a preview and changes nothing. ' +
+      'Ignored when this call does not require confirmation.',
+  );
+
 export const dateSchema = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, 'Use YYYY-MM-DD')

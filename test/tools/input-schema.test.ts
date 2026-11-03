@@ -26,6 +26,12 @@ describe('tool input schemas', () => {
         tool.inputSchema.safeParse({ ...base, includeOk: true }).success,
         `${tool.name} unknown`,
       ).toBe(false);
+      if (tool.kind === 'write') {
+        expect(
+          tool.inputSchema.safeParse({ ...base, confirm: true }).success,
+          `${tool.name} confirm`,
+        ).toBe(true);
+      }
     }
   });
 

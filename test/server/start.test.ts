@@ -134,9 +134,12 @@ describe('buildServerSetup', () => {
       expect(names.includes('delete_manhours')).toBe(!c.readOnly);
       expect(names.includes('list_staff')).toBe(c.role !== 'employee');
       if (!c.readOnly) {
-        expect(tools.find((t) => t.name === 'punch')?.annotations).toMatchObject({
-          destructiveHint: true,
+        expect(tools.find((t) => t.name === 'punch')?.annotations).toEqual({
+          title: 'Punch the time clock',
+          destructiveHint: false,
           readOnlyHint: false,
+          idempotentHint: false,
+          openWorldHint: true,
         });
       }
       expect(prompts.includes('end_of_month')).toBe(true);

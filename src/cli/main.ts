@@ -3,13 +3,21 @@ import { type ApiHost, type Connection, isValidCompanyId, parseApiHost } from '.
 import { KintaiApiError } from '../api/errors.ts';
 import { fetchMyStaff, permissionRole, type StaffSummary } from '../api/staff.ts';
 import { reissueToken } from '../api/token.ts';
+import type { ConfirmLevel } from '../confirm.ts';
+import { CONFIRM_LEVEL_LABEL } from '../confirm.ts';
 import { NotLoggedInError, TokenExpiredError } from '../credentials/token-manager.ts';
 import type { Credentials } from '../credentials/types.ts';
 import { createRuntime, type Runtime, type RuntimeOptions } from '../runtime.ts';
+import { saveSettings, settingsPath } from '../settings.ts';
 import { formatIsoDateTime } from '../time/datetime.ts';
 import { ROLE_LABEL } from '../tools/labels.ts';
 import { VERSION } from '../version.ts';
 import type { ArrowChoice, SelectOutcome } from './arrow-select.ts';
+import {
+  CONFIRM_SELECT_MESSAGE,
+  confirmSelectChoices,
+  DEFAULT_CONFIRM_CHOICE,
+} from './confirm-prompt.ts';
 import { DEFAULT_API_HOST, HOST_SELECT_MESSAGE, hostSelectChoices } from './host-prompt.ts';
 
 export interface CliIO {
@@ -101,6 +109,9 @@ async function login(args: readonly string[], deps: CliDeps): Promise<number> {
   if (host === 'cancelled') return 130;
   if (!host) return 1;
 
+  const confirmLevel = await readConfirmLevel(io);
+  if (confirmLevel === 'cancelled') return 130;
+
   const token = (await io.promptSecret('APIトークン（入力は表示されません）: ')).trim();
   if (token === '') {
     io.stderr('APIトークンが入力されませんでした。\n');
@@ -149,14 +160,18 @@ async function login(args: readonly string[], deps: CliDeps): Promise<number> {
   }
 
   await runtime.store.save(credentials);
-  io.stdout(
-    [
-      `保存しました: ${runtime.store.location}`,
-      `従業員: ${staff.name ?? `ID ${staff.staffId}`}（${ROLE_LABEL[permissionRole(staff.permissionType)]}）`,
-      `有効期限: ${formatExpiry(credentials.expiresAt, now)}`,
-      '',
-    ].join('\n'),
-  );
+  const lines = [
+    `保存しました: ${runtime.store.location}`,
+    `従業員: ${staff.name ?? `ID ${staff.staffId}`}（${ROLE_LABEL[permissionRole(staff.permissionType)]}）`,
+    `有効期限: ${formatExpiry(credentials.expiresAt, now)}`,
+  ];
+  if (confirmLevel) {
+    const env = deps.runtimeOptions?.env ?? process.env;
+    await saveSettings(settingsPath(env), confirmLevel);
+    lines.push(`書き込みの確認: ${CONFIRM_LEVEL_LABEL[confirmLevel]}`);
+  }
+  lines.push('');
+  io.stdout(lines.join('\n'));
   return 0;
 }
 
@@ -179,6 +194,17 @@ async function readLoginHost(
     return selected.status === 'cancelled' ? 'cancelled' : selected.value;
   }
   return parseHostValue(await io.prompt(NONINTERACTIVE_HOST_PROMPT), io);
+}
+
+/** 対話端末だけ矢印で選ぶ。非 TTY は聞かない（既定か、保存済み、環境変数のまま）。 */
+async function readConfirmLevel(io: CliIO): Promise<ConfirmLevel | 'cancelled' | undefined> {
+  if (!io.interactive) return undefined;
+  const selected = await io.promptSelect({
+    message: CONFIRM_SELECT_MESSAGE,
+    choices: confirmSelectChoices(),
+    defaultValue: DEFAULT_CONFIRM_CHOICE,
+  });
+  return selected.status === 'cancelled' ? 'cancelled' : selected.value;
 }
 
 function parseHostValue(input: string, io: CliIO): ApiHost | undefined {
@@ -239,7 +265,7 @@ async function status(deps: CliDeps): Promise<number> {
   const credentials = stored ?? (fromEnv ? await runtime.tokens.getCredentials() : undefined);
   if (!credentials) {
     io.stdout(
-      `保存先: ${runtime.store.location}\n未ログインです。\`npx kintai-plus-mcp login\` で登録してください。\n`,
+      `保存先: ${runtime.store.location}\n書き込みの確認: ${formatConfirm(runtime.config)}\n未ログインです。\`npx kintai-plus-mcp login\` で登録してください。\n`,
     );
     return 1;
   }
@@ -262,6 +288,7 @@ async function status(deps: CliDeps): Promise<number> {
           ? `有効（残り ${runtime.config.refreshBeforeDays} 日を切ったら再発行）`
           : '無効'
     }`,
+    `書き込みの確認: ${formatConfirm(runtime.config)}`,
   ];
 
   let code = 0;
@@ -279,6 +306,13 @@ async function status(deps: CliDeps): Promise<number> {
   }
   io.stdout(`${lines.join('\n')}\n`);
   return code;
+}
+
+function formatConfirm(config: { confirm: ConfirmLevel; confirmSource: string }): string {
+  const label = CONFIRM_LEVEL_LABEL[config.confirm];
+  if (config.confirmSource === 'env') return `${label}（環境変数）`;
+  if (config.confirmSource === 'settings') return `${label}（login で保存）`;
+  return `${label}（既定）`;
 }
 
 function formatExpiry(expiresAt: string | undefined, now: Date): string {

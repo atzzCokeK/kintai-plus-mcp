@@ -58,9 +58,32 @@ export async function connectTestClient(server: McpServer, options: TestClientOp
     async callTool(name: string, args: Record<string, unknown> = {}) {
       const res = await request('tools/call', { name, arguments: args });
       if (res.error) throw new Error(JSON.stringify(res.error));
-      const result = res.result as { content: Array<{ text: string }>; isError?: boolean };
+      const result = res.result as {
+        content: Array<{ text: string }>;
+        isError?: boolean;
+        structuredContent?: Record<string, unknown>;
+      };
       const text = result.content.map((c) => c.text).join('');
-      return { isError: result.isError === true, text, json: safeJson(text) };
+      return {
+        isError: result.isError === true,
+        text,
+        json: safeJson(text),
+        structuredContent: result.structuredContent,
+      };
+    },
+    async listResources() {
+      const res = await request('resources/list');
+      if (res.error) throw new Error(JSON.stringify(res.error));
+      return (res.result as { resources: Array<Record<string, unknown>> }).resources;
+    },
+    async readResource(uri: string) {
+      const res = await request('resources/read', { uri });
+      if (res.error) throw new Error(JSON.stringify(res.error));
+      const result = res.result as {
+        contents: Array<{ uri: string; text?: string; mimeType?: string }>;
+      };
+      const text = result.contents.map((part) => part.text ?? '').join('');
+      return { contents: result.contents, text, json: safeJson(text) };
     },
     close: () => clientSide.close(),
   };

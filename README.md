@@ -29,6 +29,7 @@
 | `get_my_profile` | 自分の従業員情報と権限 |
 | `get_today_status` | 今日の状況（未出勤／勤務中／休憩中／退勤済み）と、ここまでの勤務時間 |
 | `close_out` | 1 日または月の締め。打刻漏れ・法定の休憩不足・工数の過不足・残業の目安・アラートを、優先度つきの残件として 1 回で返す |
+| `get_attendance_guide` | 就業ルール・法定休憩・打刻種別の説明（いまの勤務データではない） |
 | `punch` 【書き込み】 | 打刻（出勤・退勤・直行・直帰・休憩入・休憩戻、テレワーク） |
 | `get_stamps` | 打刻履歴（長い期間は自動で分割） |
 | `get_working_records` | 勤務実績（労働区分・時刻・実働・休憩。31 日ごとに自動で分割） |
@@ -60,6 +61,16 @@
 | `end_of_month` | 月末の締め（`close_out` で残件と残業の目安を 1 回で確認。0.1.x の `monthly_review`） |
 | `team_status` | 管理者向け: チームの今日の状況と残業リスク |
 
+### リソース
+
+対応しているクライアントでは、次の URI をコンテキストとして読めます。中身はツールと同じです。リソースが無いクライアントは、右のツールを使ってください。
+
+| URI | 同じ内容のツール |
+|---|---|
+| `kintai://today` | `get_today_status`（今日の状態） |
+| `kintai://close-out/month` | `close_out`（`scope=month`、今月） |
+| `kintai://guide` | `get_attendance_guide`（就業ルール、法定休憩、打刻種別） |
+
 ## 必要なもの
 
 - Node.js 22 以上
@@ -81,16 +92,21 @@
 npx kintai-plus-mcp login
 ```
 
-次の 3 つを聞かれます。
+次を聞かれます。
 
 - **ログイン企業ID**
 - **接続先**: ログイン後のブラウザの URL のドメインを、↑/↓ で選んで Enter で決めます。最初に選ばれているのは `atnd.ak4.jp` です。
 
   - `atnd.ak4.jp`（既定。`https://atnd.ak4.jp/` でログインしている）
   - `atnd-awj.ak4.jp`（`https://atnd-awj.ak4.jp/` でログインしている）
+- **書き込み前の確認**（接続先と同じ ↑/↓ と Enter。最初に選ばれているのは「削除だけ」）
+
+  - 毎回確認する（すべての書き込み）
+  - 打刻は確認なし、削除だけ確認（既定。工数の保存も確認しません）
+  - 確認しない
 - **APIトークン**（入力は表示されません）
 
-端末でない入力（パイプなど）では、矢印ではなくドメインかその URL を 1 行で渡します。空行は `atnd.ak4.jp` です。`--host` で指定したときは聞きません。Ctrl+C で選択を中断します。
+端末でない入力（パイプなど）では、接続先は矢印ではなくドメインかその URL を 1 行で渡します。空行は `atnd.ak4.jp` です。`--host` で指定したときは接続先を聞きません。確認レベルは聞きません（保存してある値はそのまま。変えるときは下の環境変数か、対話の `login`）。Ctrl+C で選択を中断します。
 
 疎通を確認してから保存します。状態の確認と削除は次のとおりです。
 
@@ -178,7 +194,7 @@ args = ["-y", "kintai-plus-mcp"]
 | 変数 | 既定 | 内容 |
 |---|---|---|
 | `KINTAI_PLUS_READ_ONLY` | `false` | `true` で書き込みツール（打刻・工数）を出さない |
-| `KINTAI_PLUS_CONFIRM_WRITES` | `false` | `true` で書き込みの前に確認ダイアログを出す（Elicitation に対応したクライアントのみ。未対応のクライアントでは書き込みが失敗します）。旧名の `CONFIRM_WRITES` も当面は読みます |
+| `KINTAI_PLUS_CONFIRM` | （下を参照） | 書き込み前の確認。`always`（毎回）/ `destructive`（削除だけ。未設定時の既定）/ `never`（確認しない）。設定してあると、`login` で保存した値より優先します |
 | `KINTAI_PLUS_INCLUDE_LOCATION` | `false` | `true` で打刻の位置情報・IP を返す |
 | `KINTAI_PLUS_REFRESH_DAYS` | `15` | 有効期限の残りがこの日数を切ったら再発行する（1〜30） |
 | `KINTAI_PLUS_AUTO_REFRESH` | `true` | `false` で自動の再発行を止める |
@@ -187,6 +203,25 @@ args = ["-y", "kintai-plus-mcp"]
 | `KINTAI_PLUS_CREDENTIALS_FILE` | `~/.config/kintai-plus-mcp/credentials.json` | ファイル保存のパス（指定するとファイル保存になる） |
 | `KINTAI_PLUS_LOG_LEVEL` | `info` | `debug` / `info` / `warn` / `error` / `silent`（ログは stderr のみ） |
 | `KINTAI_PLUS_MIN_INTERVAL_MS` | `300` | API リクエストの最小間隔（ミリ秒） |
+
+### 書き込み前の確認
+
+既定は **打刻は確認なし、削除だけ確認** です。打刻と工数の保存はそのまま実行し、工数の削除だけ止めます。`login` で選んだ値は、認証情報とは別に保存します。
+
+| 値 | 動き |
+|---|---|
+| `always` | 打刻・工数の保存・削除の前に確認する |
+| `destructive` | 削除だけ確認する（既定） |
+| `never` | 確認しない |
+
+確認が必要なとき:
+
+- クライアントが確認ダイアログ（Elicitation）に対応していれば、何をいつ登録・削除するかを示して承認をもらいます。断る、またはキャンセルすると、何も変えません。
+- 対応していないクライアントでは、実行せずにプレビューを返します。同じツールを `confirm: true` で呼び直すと実行します。
+
+`KINTAI_PLUS_READ_ONLY=true` のときは書き込みツール自体を出しません。打刻が今日の履歴と矛盾するときは、確認の前に拒否します（`force: true` はこれまでどおり）。
+
+以前の `KINTAI_PLUS_CONFIRM_WRITES`（と、さらに古い `CONFIRM_WRITES`）は、`KINTAI_PLUS_CONFIRM` が無いときだけ読みます。`true` は `always`、`false` は `never` です。
 
 ### 環境変数でトークンを渡す（ボットなど）
 
@@ -250,6 +285,19 @@ KINTAI_PLUS_TOKEN=... KINTAI_PLUS_COMPANY_ID=... KINTAI_PLUS_HOST=atnd.ak4.jp np
 - タイムゾーンは日本時間（Asia/Tokyo）固定です
 - 人事マスタの書き込み（従業員の登録・削除、権限、異動など）は扱いません
 
+## MCP クライアントの対応（2026-11 時点）
+
+調べた範囲です。「未確認」は未対応という意味ではありません。
+
+| 機能 | Claude Code | Cursor | VS Code | ChatGPT | Gemini CLI |
+|---|---|---|---|---|---|
+| ツール注釈（読み取り / 破壊的 / 冪等 / 外部） | あり | 未確認 | あり | あり | 未確認 |
+| 書き込み前の確認（Elicitation） | あり | あり | あり | 未確認 | 未確認 |
+| リソース（`kintai://...`） | あり | あり | あり | 未確認 | 一部 |
+| structuredContent | 未確認 | 未確認 | 未確認 | あり | 未確認 |
+
+注釈は全ツールに付いています。打刻は書き込みですが destructive ではありません（後から修正申請で直せます）。工数の削除は destructive です。成功したオブジェクトは、JSON のテキストと `structuredContent` の両方で返します。
+
 ## セキュリティとプライバシー
 
 - トークンは OS のキーチェーン（macOS キーチェーン、Windows 資格情報マネージャー、Linux の Secret Service）に保存します。Linux で Secret Service がない場合は、再起動で消えるカーネルのキーリングではなく、ファイル（600）に保存します
@@ -285,6 +333,8 @@ This project is not affiliated with, endorsed by, or sponsored by Money Forward,
 - Admin tools (staff list, team punches, 勤務処理 labels via `get_working_treatments`, project members) are shown only to admins. `get_working_treatments` is not today's punch status (`get_today_status`)
 - Runs locally over stdio: `npx kintai-plus-mcp`. Register your token first with `npx kintai-plus-mcp login`
 - The token is stored in the OS keychain (or a 600-permission file) and reissued automatically before it expires. A token passed only via `KINTAI_PLUS_TOKEN` is not stored or reissued unless `KINTAI_PLUS_PERSIST_ENV_TOKEN=true` (reissue invalidates the previous token)
+- Write confirmation has three levels. The default asks only before deleting man-hours. Punch and saving man-hours run without a dialog. Clients without elicitation get a preview until the tool is called again with `confirm: true`
+- `kintai://today`, `kintai://close-out/month`, and `kintai://guide` mirror `get_today_status`, this month's `close_out`, and `get_attendance_guide`
 - Location and IP address of punches are not sent to the AI by default
 - Not supported: requests (申請) and schedules, because the public API does not provide them. Punches are recorded at the time the server receives them and cannot be edited via the API
 - Requires Node.js 22+ and an API token issued from your Kintai Plus "My Page" (an admin must enable "公開API利用可否" for you)

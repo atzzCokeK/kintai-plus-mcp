@@ -66,19 +66,40 @@ describe('annotationsFor', () => {
       title: 'get_my_profile',
       readOnlyHint: true,
       destructiveHint: false,
+      idempotentHint: true,
       openWorldHint: true,
     });
   });
 
-  it('書き込み系は destructiveHint を申告する', () => {
+  it('書き込みでも、消さない操作は destructiveHint にしない', () => {
     expect(annotationsFor(tools[1] as never)).toMatchObject({
       readOnlyHint: false,
-      destructiveHint: true,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: true,
     });
   });
 
-  it('ツールごとに idempotentHint を上書きできる', () => {
-    const t = defineTool({ ...tools[1], name: 'save_manhours', idempotent: true } as never);
-    expect(annotationsFor(t as never)).toMatchObject({ idempotentHint: true });
+  it('destructive と idempotent と openWorld をツールごとに付けられる', () => {
+    const save = defineTool({
+      ...tools[1],
+      name: 'save_manhours',
+      destructive: false,
+      idempotent: true,
+    } as never);
+    const remove = defineTool({
+      ...tools[1],
+      name: 'delete_manhours',
+      destructive: true,
+      idempotent: true,
+    } as never);
+    const guide = defineTool({ ...tools[0], name: 'guide', openWorld: false } as never);
+    expect(annotationsFor(save as never).idempotentHint).toBe(true);
+    expect(annotationsFor(save as never).destructiveHint).toBe(false);
+    expect(annotationsFor(remove as never)).toMatchObject({
+      destructiveHint: true,
+      idempotentHint: true,
+    });
+    expect(annotationsFor(guide as never).openWorldHint).toBe(false);
   });
 });
