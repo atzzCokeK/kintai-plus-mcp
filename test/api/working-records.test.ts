@@ -115,6 +115,48 @@ describe('parseWorkingRecords', () => {
     expect(rs[0]?.workingMinutesAreGross).toBeUndefined();
   });
 
+  it('仕様例の休憩実績（result_break_time_*）を合計し、日をまたぐ休憩も数える', () => {
+    const [named] = parseWorkingRecords([
+      {
+        date: '2026/10/27',
+        working_day_category: 0,
+        start_time: '2026/10/27 09:00:00',
+        end_time: '2026/10/27 18:00:00',
+        break_time_results: [
+          {
+            result_break_time_start_time: '2026/10/27 12:00:00',
+            result_break_time_end_time: '2026/10/27 13:00:00',
+            rounded_break_time_start_time: '2026/10/27 12:00:00',
+            rounded_break_time_end_time: '2026/10/27 13:00:00',
+          },
+        ],
+      },
+    ]);
+    expect(named?.breakMinutes).toBe(60);
+    expect(named?.workingMinutesAreGross).toBe(true);
+    const [overnight] = parseWorkingRecords([
+      {
+        date: '2026/10/31',
+        working_day_category: 0,
+        break_time_results: [
+          {
+            result_break_time_start_time: '2026/10/31 23:30:00',
+            result_break_time_end_time: '2026/11/01 00:30:00',
+          },
+        ],
+      },
+    ]);
+    expect(overnight?.breakMinutes).toBe(60);
+    const [clockOnly] = parseWorkingRecords([
+      {
+        date: '2026/10/31',
+        working_day_category: 0,
+        break_time_results: [{ start_time: '23:30', end_time: '00:30' }],
+      },
+    ]);
+    expect(clockOnly?.breakMinutes).toBe(60);
+  });
+
   it('休憩が分数で来ても合計する', () => {
     const [r] = parseWorkingRecords([
       { ...record, break_time_results: [{ break_time: 45 }, { minutes: 15 }] },

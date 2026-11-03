@@ -145,9 +145,21 @@ function minutes(v: unknown): number | undefined {
 
 function breakMinutes(b: unknown, date: LocalDate): number {
   if (!isRec(b)) return minutes(b) ?? 0;
-  const start = timeOnDate(b.start_time ?? b.start, date);
-  const end = timeOnDate(b.end_time ?? b.end, date);
-  if (start && end) return Math.max(0, Math.round((end.getTime() - start.getTime()) / MINUTE));
+  // 仕様例は result_break_time_*。実応答は未検証なので、丸め時刻と start_time / end_time も読む。
+  const start = timeOnDate(
+    b.result_break_time_start_time ?? b.rounded_break_time_start_time ?? b.start_time ?? b.start,
+    date,
+  );
+  const end = timeOnDate(
+    b.result_break_time_end_time ?? b.rounded_break_time_end_time ?? b.end_time ?? b.end,
+    date,
+  );
+  if (start && end) {
+    let diff = end.getTime() - start.getTime();
+    // 時刻だけで日をまたぐ休憩（23:30 → 00:30）は、同じ日の 0 時として読まれる。
+    if (diff < 0) diff += 24 * 60 * 60 * 1000;
+    return Math.max(0, Math.round(diff / MINUTE));
+  }
   return minutes(b.break_time ?? b.minutes ?? b.time) ?? 0;
 }
 

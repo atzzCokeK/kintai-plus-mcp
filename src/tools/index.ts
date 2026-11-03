@@ -16,6 +16,7 @@ import { punchTool } from './punch.ts';
 import type { ToolDefinition } from './registry.ts';
 import { getStampsTool, getTodayStatusTool } from './stamps.ts';
 import { summarizeWorkingHoursTool } from './summary.ts';
+import { teamCloseOutTool } from './team-close-out.ts';
 import { getWorkingRecordsTool } from './working-records.ts';
 
 /** すべてのツール。公開するかどうかは selectTools で決める */
@@ -41,5 +42,6 @@ export const ALL_TOOLS: readonly ToolDefinition[] = [
   getTeamStampsTool,
   getWorkingTreatmentsTool,
   getProjectMembersTool,
+  teamCloseOutTool,
   findOvertimeRisksTool,
 ];

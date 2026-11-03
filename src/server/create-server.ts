@@ -17,6 +17,7 @@ export const SERVER_INSTRUCTIONS = [
   'Unofficial MCP server for マネーフォワード クラウド勤怠Plus (formerly AKASHI).',
   'All dates and times are Japan time (Asia/Tokyo, no daylight saving). Date arguments are YYYY-MM-DD. Month arguments are YYYY-MM with the month in 01-12.',
   'For "what should I do before clocking out" or month-end (1日の締め / 月末の締め), call close_out once. Do not chain get_today_status, check_attendance_issues, get_manhours, summarize_working_hours, and get_alerts for that checklist.',
+  'Admins closing a team day or month (チームの締め) should call team_close_out once. Do not call get_team_stamps once per day or get_working_records once per person for that checklist. team_close_out is hidden from employees. punch records the caller, not a teammate.',
   'punch is recorded at the time the server receives it and cannot be edited, deleted, or backdated. Past corrections need 修正申請 in the web UI, not punch.',
   'save_manhours overwrites only the tasks you list. delete_manhours removes them; omitting taskId deletes every task of that project for the day.',
   'Write confirmation follows the user setting. The default confirms delete_manhours only; punch and save_manhours run without a dialog. If a write returns executed:false, nothing was changed — show the preview and call the same tool again with confirm: true.',

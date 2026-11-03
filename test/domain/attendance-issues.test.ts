@@ -256,6 +256,115 @@ describe('findAttendanceIssues', () => {
     expect(issues[1]?.message).toMatch(/休憩/);
   });
 
+  it('出勤が重なっている日と、出勤無しで休憩戻・退勤だけの日を指摘する', () => {
+    const issues = findAttendanceIssues({
+      range: { from: '2026-10-01', to: '2026-10-03' },
+      records: [],
+      stamps: [
+        s('clock_in', '2026-10-01T09:00:00+09:00'),
+        s('clock_in', '2026-10-01T09:05:00+09:00'),
+        s('clock_out', '2026-10-01T18:00:00+09:00'),
+        s('clock_in', '2026-10-02T09:00:00+09:00'),
+        s('clock_out', '2026-10-02T12:00:00+09:00'),
+        s('clock_in', '2026-10-02T13:00:00+09:00'),
+        s('clock_out', '2026-10-02T18:00:00+09:00'),
+        s('break_end', '2026-10-03T12:03:00+09:00'),
+        s('clock_out', '2026-10-03T18:00:00+09:00'),
+      ],
+    });
+    expect(types(issues)).toEqual(['2026-10-01 duplicate_clock_in', '2026-10-03 missing_clock_in']);
+    expect(issues[1]?.message).toMatch(/休憩/);
+  });
+
+  it('夜勤と日をまたぐ休憩は、出勤漏れにも短いインターバルにもしない', () => {
+    const at = (iso: string) => new Date(iso);
+    const issues = findAttendanceIssues({
+      range: { from: '2026-10-01', to: '2026-10-04' },
+      records: [
+        {
+          date: '2026-10-01',
+          dayCategory: 'workday',
+          actualWorkingMinutes: 480,
+          startTime: at('2026-10-01T22:00:00+09:00'),
+          endTime: at('2026-10-02T06:00:00+09:00'),
+        },
+        {
+          date: '2026-10-02',
+          dayCategory: 'workday',
+          actualWorkingMinutes: 480,
+          startTime: at('2026-10-02T22:00:00+09:00'),
+          endTime: at('2026-10-03T06:00:00+09:00'),
+        },
+      ],
+      stamps: [
+        s('clock_in', '2026-10-01T22:00:00+09:00'),
+        s('break_start', '2026-10-01T23:30:00+09:00'),
+        s('break_end', '2026-10-02T00:30:00+09:00'),
+        s('clock_out', '2026-10-02T06:00:00+09:00'),
+        s('clock_in', '2026-10-02T22:00:00+09:00'),
+        s('clock_out', '2026-10-03T06:00:00+09:00'),
+      ],
+    });
+    expect(types(issues)).toEqual([]);
+  });
+
+  it('勤務実績の間隔が 11 時間以上なら、打刻が短く見えてもインターバル不足にしない', () => {
+    const at = (iso: string) => new Date(iso);
+    const issues = findAttendanceIssues({
+      range: { from: '2026-10-06', to: '2026-10-07' },
+      records: [
+        {
+          date: '2026-10-06',
+          dayCategory: 'workday',
+          endTime: at('2026-10-06T18:00:00+09:00'),
+          actualWorkingMinutes: 480,
+        },
+        {
+          date: '2026-10-07',
+          dayCategory: 'workday',
+          startTime: at('2026-10-07T09:00:00+09:00'),
+          actualWorkingMinutes: 480,
+        },
+      ],
+      stamps: [
+        s('clock_in', '2026-10-06T09:00:00+09:00'),
+        s('clock_out', '2026-10-06T23:00:00+09:00'),
+        s('clock_in', '2026-10-07T08:00:00+09:00'),
+        s('clock_out', '2026-10-07T17:00:00+09:00'),
+      ],
+    });
+    expect(types(issues)).not.toContain('2026-10-07 short_interval');
+  });
+
+  it('勤務実績の間隔が 11 時間未満なら、打刻が長く見えても指摘する', () => {
+    const at = (iso: string) => new Date(iso);
+    const issues = findAttendanceIssues({
+      range: { from: '2026-10-06', to: '2026-10-07' },
+      records: [
+        {
+          date: '2026-10-06',
+          dayCategory: 'workday',
+          endTime: at('2026-10-06T22:00:00+09:00'),
+          actualWorkingMinutes: 480,
+        },
+        {
+          date: '2026-10-07',
+          dayCategory: 'workday',
+          startTime: at('2026-10-07T07:00:00+09:00'),
+          actualWorkingMinutes: 480,
+        },
+      ],
+      stamps: [
+        s('clock_in', '2026-10-06T09:00:00+09:00'),
+        s('clock_out', '2026-10-06T18:00:00+09:00'),
+        s('clock_in', '2026-10-07T09:00:00+09:00'),
+        s('clock_out', '2026-10-07T18:00:00+09:00'),
+      ],
+    });
+    expect(types(issues)).toContain('2026-10-07 short_interval');
+    expect(issues.find((i) => i.type === 'short_interval')?.message).toMatch(/勤務実績/);
+  });
+
   it('問題がなければ空', () => {
     expect(
       findAttendanceIssues({

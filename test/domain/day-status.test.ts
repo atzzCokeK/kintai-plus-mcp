@@ -63,6 +63,22 @@ describe('computeDayStatus', () => {
     expect(r).toMatchObject({ state: 'working', workedMinutes: 240 });
   });
 
+  it('countOpen が false のとき、開いている区間を now まで数えない', () => {
+    const working = computeDayStatus([s('clock_in', '09:00')], at('23:59'), { countOpen: false });
+    expect(working).toMatchObject({ state: 'working', workedMinutes: 0, unclosed: 'clock_out' });
+    const onBreak = computeDayStatus(
+      [s('clock_in', '09:00'), s('break_start', '12:00')],
+      at('23:59'),
+      { countOpen: false },
+    );
+    expect(onBreak).toMatchObject({
+      state: 'on_break',
+      workedMinutes: 180,
+      breakMinutes: 0,
+      unclosed: 'break_end',
+    });
+  });
+
   it('二重の出勤など、ありえない並びは無視する（時間を二重に数えない）', () => {
     const r = computeDayStatus([s('clock_in', '09:00'), s('clock_in', '10:00')], at('11:00'));
     expect(r).toMatchObject({ state: 'working', workedMinutes: 120 });

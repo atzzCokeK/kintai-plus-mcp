@@ -121,8 +121,43 @@ export const ALL_PROMPTS: readonly PromptDefinition[] = [
         'チームの今日の状況をまとめてください。',
         '1. get_team_stamps で、今日の未出勤・勤務中・休憩中・退勤済みの人数と、未出勤の人を一覧にする（休暇の可能性があることを添える）。',
         '2. find_overtime_risks で、今月の残業が多い・多くなりそうな人を挙げる。数値は目安であることを添える。',
-        '3. 個人情報は必要な範囲だけにとどめる。',
+        '3. 個人情報は必要な範囲だけにとどめる。同姓同名は staffId と社員番号で区別する。',
       ].join('\n'),
+  }),
+  definePrompt({
+    name: 'team_end_of_month',
+    title: 'チームの月末締め',
+    description:
+      '管理者向け: 管理下のメンバーの月を team_close_out で確認し、対応が必要な人と理由をまとめる',
+    argsSchema: z.object({
+      month: z
+        .string()
+        .regex(/^\d{4}-\d{2}$/)
+        .optional()
+        .describe('月（YYYY-MM、日本時間。既定は今月。1 日なら前月）'),
+    }),
+    requiredTools: ['team_close_out'],
+    build: (args, now) => {
+      const today = todayInTokyo(now);
+      const month = args.month ?? today.slice(0, 7);
+      const isCurrent = month === today.slice(0, 7);
+      const yesterday = addDays(today, -1);
+      const firstOfMonth = isCurrent && yesterday < `${month}-01`;
+      const closeMonth = firstOfMonth ? yesterday.slice(0, 7) : month;
+      return [
+        `${month} のチームの締めを確認してください。日付は日本時間です。`,
+        firstOfMonth
+          ? `1. 今月は 1 日なので、終わっているのは前月です。team_close_out（scope=month, month=${closeMonth}）を 1 回だけ呼ぶ。対象者を省略すると管理下の全員です。`
+          : `1. team_close_out（scope=month, month=${month}）を 1 回だけ呼ぶ。対象者を省略すると管理下の全員です。今日が月の途中なら今日は進行中として扱う。`,
+        '2. get_team_stamps を日ごとに連ねたり、get_working_records を人ごとに呼んだりしない。',
+        '3. headline を使う。ok が true で members が空かつ noActivity が空なら「対応は不要です」と明言する。',
+        '4. members は対応が必要な人だけ。同姓同名がいるので、名前に加えて staffId と社員番号（staffNum）を必ず書く。問題が無い人は noIssueCount の人数だけでよい。',
+        '5. noActivity は期間中に実績も打刻も無い人です。休職・退職の可能性があると添えて、別にして伝える。',
+        '6. 打刻の修正は Web の修正申請。punch は操作者本人の打刻なので、メンバーの代わりに呼ばない。',
+        '7. overtime と disclaimer は目安。36 時間と 45 時間の両方に触れる。unsupported に書いてあるもの（アラート、工数未入力、休暇）は見ていないと伝える。',
+        '8. 休憩が不明な日の実働は法定休憩を引いた見積もりです。推定であることは隠さない。',
+      ].join('\n');
+    },
   }),
 ];
 

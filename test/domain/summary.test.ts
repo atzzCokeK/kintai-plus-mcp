@@ -30,6 +30,8 @@ describe('summarizeWorkingHours', () => {
       overDailyLimitMinutes: 180,
       legalHolidayMinutes: 240,
       breakTimeUnknown: false,
+      minutesAreEstimated: false,
+      grossElapsedMinutes: 0,
     });
   });
 
@@ -42,9 +44,39 @@ describe('summarizeWorkingHours', () => {
         workingMinutesAreGross: true,
       },
     ]);
-    expect(s.totalWorkingMinutes).toBe(600);
-    expect(s.overDailyLimitMinutes).toBe(120);
+    expect(s.totalWorkingMinutes).toBe(540);
+    expect(s.overDailyLimitMinutes).toBe(60);
+    expect(s.grossElapsedMinutes).toBe(600);
+    expect(s.minutesAreEstimated).toBe(true);
     expect(s.breakTimeUnknown).toBe(true);
+  });
+
+  it('6 時間超 8 時間以下の経過は 45 分、休憩実績があればその分数を引く', () => {
+    const statutory = summarizeWorkingHours([
+      {
+        date: '2026-10-01',
+        dayCategory: 'workday',
+        actualWorkingMinutes: 7 * 60,
+        workingMinutesAreGross: true,
+      },
+    ]);
+    expect(statutory.totalWorkingMinutes).toBe(7 * 60 - 45);
+    expect(statutory.breakTimeUnknown).toBe(true);
+
+    const measured = summarizeWorkingHours([
+      {
+        date: '2026-10-02',
+        dayCategory: 'workday',
+        actualWorkingMinutes: 600,
+        workingMinutesAreGross: true,
+        breakMinutes: 30,
+      },
+    ]);
+    expect(measured.totalWorkingMinutes).toBe(570);
+    expect(measured.overDailyLimitMinutes).toBe(90);
+    expect(measured.grossElapsedMinutes).toBe(600);
+    expect(measured.breakTimeUnknown).toBe(false);
+    expect(measured.minutesAreEstimated).toBe(true);
   });
 
   it('記録がなければ 0', () => {

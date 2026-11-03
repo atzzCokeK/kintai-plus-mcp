@@ -146,6 +146,7 @@ describe('buildServerSetup', () => {
       expect(prompts.includes('end_of_day')).toBe(!c.readOnly);
       expect(prompts.includes('log_manhours')).toBe(!c.readOnly);
       expect(prompts.includes('team_status')).toBe(c.role !== 'employee');
+      expect(prompts.includes('team_end_of_month')).toBe(c.role !== 'employee');
     }
   });
 

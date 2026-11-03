@@ -39,7 +39,7 @@
 | 打刻取得 | `GET /{c}/stamps`（自分）、`/{c}/stamps/{staffId}` | 期間最長 6 ヶ月、1 回 1000 件まで。`start_date` / `end_date` は `yyyymmddHHMMSS`。応答は `{ login_company_code, staff_id, count, stamps: [...] }`。項目: stamped_at, type, local_time, timezone（`+9.00`）, attributes{method, org_id, workplace_id, latitude, longitude, ip}（**位置・IP は実データにあり、既定で除外**） |
 | 複数従業員の打刻 | `GET /{c}/multiple_stamps?staff_ids=1,2,3` | 期間最長 **1 日**、最大 50 人、1000 件まで。応答は `{ login_company_code, multiple_stamps: [{ staff_id, count, stamps }] }` |
 | アラート取得 | `GET /{c}/alerts` | 本人分のみ、絞り込み不可。応答は `{ ..., count, alerts: [{ month, date, alert_type }] }`。alert_type: 1 打刻忘れ, 2 欠勤疑い, 3 休憩過小/超過, 6 休日出勤, 7 遅刻, 8 早退, 9 残業時間閾値超え, 11 深夜労働, 13 36協定, 14 インターバル, 22 工数未入力, 28 休憩時間不足 など 1〜28、23 は欠番 |
-| 勤務実績 | `GET /{c}/working_records?staff_ids=...` | 自分と管理下。`start_date` / `end_date` は `yyyymmdd`、最長 **31 日**（超えると 400 `ERR301601`。`staff_ids` が無いと 400 `ERR301603`）。`response` は `[{ staff_id, working_records: [...] }]`。各レコードの項目は date, working_day_category（0 労働日 / 1 所定休日 / 2 法定休日）, start_time, end_time, rounded_*, attendance_punch_time, leaving_punch_time のみ。時刻は `yyyy/mm/dd HH:MM:SS` で、終了が翌日以降になる夜勤がある。`actual_working_hours_no_rounding` と `break_time_results` は返らない。実働は開始〜終了（無ければ rounded_*）の経過として見積もり、休憩は不明とする。**残業時間の項目はない**。法定の休憩不足（6 時間超で 45 分、8 時間超で 60 分）は、この API ではなく打刻の休憩入／休憩戻から数える |
+| 勤務実績 | `GET /{c}/working_records?staff_ids=...` | 自分と管理下。`staff_ids` は必須（カンマ区切り、仕様上最大 **50 人**。3 人までは成功。50 人ちょうどは未実測なので 50 人ずつ）。`start_date` / `end_date` は `yyyymmdd`、最長 **31 日**（超えると 400 `ERR301601`。`staff_ids` が無いと 400 `ERR301603`）。`response` は `[{ staff_id, working_records: [...] }]`。2026-10-29 の実応答にあった項目は date, working_day_category（0 労働日 / 1 所定休日 / 2 法定休日）, start_time, end_time, rounded_*, attendance_punch_time, leaving_punch_time のみ。時刻は `yyyy/mm/dd HH:MM:SS` で、終了が翌日以降になる夜勤がある。仕様には `include_actual_working_hours_no_rounding=1`（実働・分。`end_date` と併用可）と `include_break_results=1`（休憩実績。`end_date` と併用不可）がある。実応答は未検証。休憩の項目名は仕様例の `result_break_time_start_time` / `result_break_time_end_time`（丸めは `rounded_break_time_*`）。項目が無い、またはパラメータで 400 のときは従来のクエリに落とし、経過を残して休憩実績か法定の最低休憩（6 時間超で 45 分、8 時間超で 60 分）を引いた見積もりを併記する。管理下外の ID を混ぜた挙動は未検証。**残業時間の項目はない** |
 | 勤務処理取得（MCP ツール名は `get_working_treatments`。0.1.x は `get_working_statuses`） | `POST /working_statuses/search` | ボディは `{ login_company_code, token, search: [{ staff_id, date: "YYYY-MM-DD" }] }`、最大 1000 件。成功は `{ success: true, results: [{ staff_id: "1002"（文字列）, date, working_statuses: [] }], errors: [] }` で `response` は無い。`working_statuses` の中身（ラベルの置き場所）は未確認 |
 | プロジェクト一覧 | `GET /{c}/projects` | 50 件/ページ。見えるプロジェクトが 0 件のときは 404 `ERR301900`（空の一覧として扱う）。project_id, name, short_name, project_code, start_date, end_date など |
 | タスク一覧 | `GET /{c}/{projectId}/tasks` | 50 件/ページ。task_id, name, code, estimated_hour（分）, is_finished など |
@@ -81,5 +81,7 @@
 - 工数取得の期間パラメータが効くか、上限は何か（`start_date` / `end_date`、`yyyy/mm/dd` と仮定。31 日ごとに分割している）
 - 参加プロジェクト API（`staff_projects`）の要素の形（ID の配列か、プロジェクトの配列か）
 - プロジェクト一覧・タスク一覧の `page` が 0 始まりか（従業員一覧に合わせて 0 始まりと仮定）
-- 勤務実績の `staff_ids` の上限（3 人までは成功した。上限は不明なので 50 人ずつに分けている）
+- 勤務実績の `include_actual_working_hours_no_rounding=1` と `include_break_results=1`（`end_date` なしの 1 日取得）の実応答。項目が無い、または 400 の `invalid_request` ならパラメータなしの取得に落とす実装済み
+- 勤務実績の `staff_ids` が仕様上限の 50 人で成功するか、51 人で失敗するか（3 人までは成功。実装は 50 人ずつ）
+- 管理下に無い従業員 ID を `staff_ids` に混ぜたときのエラー（一覧が取り切れているときは API を呼ばず拒否する）
 - 勤務処理の `working_statuses` 配列の中身（ラベルの置き場所）。空配列しか見ていない
