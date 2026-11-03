@@ -66,6 +66,64 @@ describe('punch', () => {
     ).rejects.toThrow(ToolInputError);
   });
 
+  it('未出勤の退勤は記録しない', async () => {
+    const { ctx, punched } = setup([]);
+    const err = await punchTool.handler({ type: 'clock_out' }, ctx).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ToolRefusedError);
+    expect((err as ToolRefusedError).details).toMatchObject({
+      state: 'not_started',
+      lastPunch: null,
+    });
+    expect(punched).toEqual([]);
+  });
+
+  it('休憩中の退勤は記録せず、休憩戻を案内する', async () => {
+    const { ctx, punched } = setup([
+      s('clock_in', '2026-10-27T09:00:00+09:00'),
+      s('break_start', '2026-10-27T09:30:00+09:00'),
+    ]);
+    const err = await punchTool.handler({ type: 'clock_out' }, ctx).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ToolRefusedError);
+    expect((err as ToolRefusedError).message).toMatch(/on a break/i);
+    expect(punched).toEqual([]);
+  });
+
+  it('休憩入で休憩中になり、休憩戻で勤務中に戻る', async () => {
+    const started = setup([s('clock_in', '2026-10-27T09:00:00+09:00')]);
+    expect(await punchTool.handler({ type: 'break_start' }, started.ctx)).toMatchObject({
+      previousState: 'working',
+      newState: 'on_break',
+    });
+    const onBreak = setup([
+      s('clock_in', '2026-10-27T09:00:00+09:00'),
+      s('break_start', '2026-10-27T09:30:00+09:00'),
+    ]);
+    expect(await punchTool.handler({ type: 'break_end' }, onBreak.ctx)).toMatchObject({
+      previousState: 'on_break',
+      newState: 'working',
+    });
+    expect(onBreak.punched).toEqual([{ type: 'break_end', at: NOW }]);
+  });
+
+  it('退勤済みの再出勤は force が無いと記録しない', async () => {
+    const stamps = [
+      s('clock_in', '2026-10-27T09:00:00+09:00'),
+      s('clock_out', '2026-10-27T09:30:00+09:00'),
+    ];
+    const refused = setup(stamps);
+    await expect(punchTool.handler({ type: 'clock_in' }, refused.ctx)).rejects.toBeInstanceOf(
+      ToolRefusedError,
+    );
+    expect(refused.punched).toEqual([]);
+    const forced = setup(stamps);
+    expect(await punchTool.handler({ type: 'clock_in', force: true }, forced.ctx)).toMatchObject({
+      previousState: 'finished',
+      newState: 'working',
+      forced: true,
+    });
+    expect(forced.punched).toHaveLength(1);
+  });
+
   it('書き込みツールとして申告する', () => {
     expect(punchTool.kind).toBe('write');
     expect(punchTool.capability).toBe('stamps.write');

@@ -65,6 +65,88 @@ describe('findAttendanceIssues', () => {
     expect(types(issues)).toEqual(['2026-10-01 missing_clock_out', '2026-10-02 missing_clock_in']);
   });
 
+  it('範囲の翌日の退勤も渡せば、末日の夜に始まった勤務を打刻忘れにしない', () => {
+    const issues = findAttendanceIssues({
+      range: { from: '2026-10-31', to: '2026-10-31' },
+      records: [rec('2026-10-31', 'workday', 480)],
+      stamps: [
+        s('clock_in', '2026-10-31T22:00:00+09:00'),
+        s('clock_out', '2026-11-01T06:00:00+09:00'),
+      ],
+    });
+    expect(types(issues)).toEqual([]);
+  });
+
+  it('休憩が日付をまたいでも、翌朝の休憩戻と退勤があれば打刻漏れにしない', () => {
+    const issues = findAttendanceIssues({
+      range: { from: '2026-10-31', to: '2026-11-01' },
+      records: [],
+      stamps: [
+        s('clock_in', '2026-10-31T22:00:00+09:00'),
+        s('break_start', '2026-10-31T23:50:00+09:00'),
+        s('break_end', '2026-11-01T00:10:00+09:00'),
+        s('clock_out', '2026-11-01T06:00:00+09:00'),
+      ],
+    });
+    expect(types(issues)).toEqual([]);
+  });
+
+  it('日付をまたいだ休憩戻のあと退勤が無ければ、休憩戻漏れではなく退勤漏れ', () => {
+    const issues = findAttendanceIssues({
+      range: { from: '2026-10-31', to: '2026-10-31' },
+      records: [],
+      stamps: [
+        s('clock_in', '2026-10-31T22:00:00+09:00'),
+        s('break_start', '2026-10-31T23:50:00+09:00'),
+        s('break_end', '2026-11-01T00:10:00+09:00'),
+      ],
+    });
+    expect(types(issues)).toEqual(['2026-10-31 missing_clock_out']);
+  });
+
+  it('休憩中のまま翌日に新しい出勤をしたときは、休憩戻の漏れとして残す', () => {
+    const issues = findAttendanceIssues({
+      range: { from: '2026-10-31', to: '2026-11-01' },
+      records: [],
+      stamps: [
+        s('clock_in', '2026-10-31T22:00:00+09:00'),
+        s('break_start', '2026-10-31T23:50:00+09:00'),
+        s('clock_in', '2026-11-01T09:00:00+09:00'),
+      ],
+    });
+    expect(types(issues)).toContain('2026-10-31 missing_break_end');
+  });
+
+  it('範囲の翌日にしかない問題は出さない', () => {
+    const issues = findAttendanceIssues({
+      range: { from: '2026-10-01', to: '2026-10-01' },
+      records: [],
+      stamps: [s('clock_out', '2026-10-02T18:00:00+09:00')],
+    });
+    expect(issues).toEqual([]);
+  });
+
+  it('所定休日の出勤も情報として出す', () => {
+    const issues = findAttendanceIssues({
+      range: { from: '2026-10-05', to: '2026-10-05' },
+      records: [
+        {
+          ...rec('2026-10-05', 'scheduled_holiday', 180),
+          workingMinutesAreGross: true,
+        },
+      ],
+      stamps: [
+        s('clock_in', '2026-10-05T10:00:00+09:00'),
+        s('clock_out', '2026-10-05T13:00:00+09:00'),
+      ],
+    });
+    expect(issues).toEqual([
+      expect.objectContaining({ type: 'holiday_work', severity: 'info', date: '2026-10-05' }),
+    ]);
+    expect(issues[0]?.message).toMatch(/所定休日/);
+    expect(issues[0]?.message).toMatch(/休憩は不明/);
+  });
+
   it('範囲の前日の打刻も渡せば、初日の朝に終わる夜勤を打刻忘れにしない（前日の問題は出さない）', () => {
     const issues = findAttendanceIssues({
       range: { from: '2026-10-02', to: '2026-10-02' },

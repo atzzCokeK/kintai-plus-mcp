@@ -443,4 +443,41 @@ describe('buildCloseout', () => {
     expect(order.indexOf('manhours_missing')).toBeLessThan(order.indexOf('overtime_over'));
     expect(out.items[0]?.priority).toBe(1);
   });
+
+  it('範囲の翌朝の退勤があれば、末日の夜勤を打刻漏れにしない', () => {
+    const out = report({
+      scope: 'month',
+      date: '2026-11-02',
+      month: '2026-10',
+      today: '2026-11-02',
+      now: new Date('2026-11-02T01:00:00Z'),
+      stamps: [
+        s('clock_in', '2026-10-31T22:00:00+09:00'),
+        s('clock_out', '2026-11-01T06:00:00+09:00'),
+      ],
+      records: [rec('2026-10-31', 'workday', 480)],
+    });
+    expect(codes(out.items)).not.toContain('missing_clock_out');
+    expect(codes(out.items)).not.toContain('missing_clock_in');
+    expect(codes(out.items)).not.toContain('overnight_open');
+  });
+
+  it('日付をまたぐ休憩は、翌朝の休憩戻と退勤があれば打刻漏れにしない', () => {
+    const out = report({
+      scope: 'day',
+      date: '2026-10-31',
+      month: '2026-10',
+      today: '2026-11-01',
+      now: new Date('2026-11-01T01:00:00Z'),
+      stamps: [
+        s('clock_in', '2026-10-31T22:00:00+09:00'),
+        s('break_start', '2026-10-31T23:50:00+09:00'),
+        s('break_end', '2026-11-01T00:10:00+09:00'),
+        s('clock_out', '2026-11-01T06:00:00+09:00'),
+      ],
+    });
+    expect(codes(out.items)).not.toContain('missing_break_end');
+    expect(codes(out.items)).not.toContain('missing_clock_out');
+    expect(codes(out.items)).not.toContain('open_break');
+  });
 });

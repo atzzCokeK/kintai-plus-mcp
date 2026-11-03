@@ -64,5 +64,5 @@
 
 - 実装は TDD。
 - 公開 CI はモックと匿名化済みフィクスチャのみ。実環境の E2E は手元でのみ実行。
-- semver。1.0 以降はツール名と引数を互換性の対象にする。
+- semver。1.0 以降はツール名・引数・プロンプト名を互換性の対象にする。壊す変更はメジャーバージョンで行う。
 - Changesets で変更履歴を管理し、GitHub Actions から Trusted Publishing + provenance で npm に公開する。

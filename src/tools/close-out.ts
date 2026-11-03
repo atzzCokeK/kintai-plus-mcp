@@ -154,11 +154,15 @@ export const closeOutTool = defineTool({
     const throughToday = monthEnd < today ? monthEnd : today;
     const reviewFrom = scope === 'day' ? date : monthStart;
     const reviewTo = scope === 'day' ? date : throughToday;
+    // 範囲の翌朝（退勤・休憩戻）まで取る。今日より先は取らない。
+    const nextMorning = addDays(reviewTo, 1);
+    // biome-ignore lint/complexity/useMathMinMax: YYYY-MM-DD の文字列比較なので Math.min は使えない
+    const stampTo = nextMorning < today ? nextMorning : today;
     const gaps: string[] = [];
     const [stampList, records, manhours, alerts] = await Promise.all([
       load(
         'get_stamps',
-        ctx.backend.getStamps({ from: addDays(reviewFrom, -1), to: reviewTo }),
+        ctx.backend.getStamps({ from: addDays(reviewFrom, -1), to: stampTo }),
         { stamps: [], truncated: false },
         gaps,
       ),

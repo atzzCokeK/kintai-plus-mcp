@@ -49,8 +49,11 @@ const isOut = (s: Stamp) => s.type === 'clock_out' || s.type === 'direct_out';
 
 /**
  * 打刻と勤務実績から、打刻漏れなどの気になる点を探す。
- * 日をまたぐ勤務（前日に出勤し、翌日の最初の打刻が退勤）は 1 つの勤務として扱い、打刻漏れにしない。
- * 範囲の初日の朝に終わる夜勤のため、stamps には範囲の前日の分も含めてよい。
+ * 日をまたぐ勤務は 1 つの勤務として扱い、打刻漏れにしない。
+ * 前日が勤務中のままなら、翌日の最初の出退勤が退勤（休憩の打刻は間にあってよい）で閉じる。
+ * 前日が休憩中のままなら、翌日が休憩戻か退勤で始まるときに閉じる。
+ * 範囲の前後 1 日も見る（初日の朝・末日の翌朝に終わる夜勤）。その外の問題は出さない。
+ * stamps には範囲の前日と翌日の分も含めてよい。
  * 休暇・申請は API で見えないため、「労働日に打刻なし」は休暇の可能性を添えて warning にとどめる。
  * 勤務実績に開始・終了（または出勤・退勤の打刻時刻）がある日は、打刻修正などで打刻が欠けていても打刻漏れにしない。
  * 休憩が不明な経過時間は 12 時間超を info にし、1 時間引いても超えるときだけ warning にする。
@@ -87,13 +90,12 @@ export function findAttendanceIssues(input: {
   }
   const recordByDate = new Map(input.records.map((r) => [r.date, r]));
 
-  // 範囲の前日から見て、初日の朝に終わる夜勤を扱う（前日の問題は最後に除く）
+  // 範囲の前日と翌日も見て、端の夜勤を扱う（範囲外の問題は最後に除く）
   const start = addDays(input.range.from, -1);
-  let pending:
-    | { date: LocalDate; type: 'missing_clock_out' | 'missing_break_end'; lastInAt?: Date }
-    | undefined;
+  const end = addDays(input.range.to, 1);
+  let pending: OpenPunch | undefined;
   let previousOut: { date: LocalDate; at: Date } | undefined;
-  const days = diffDays(start, input.range.to) + 1;
+  const days = diffDays(start, end) + 1;
 
   for (let i = 0; i < days; i++) {
     const date = addDays(start, i);
@@ -102,18 +104,12 @@ export function findAttendanceIssues(input: {
     const firstInOrOut = stamps.find((s) => isIn(s) || isOut(s));
     const startsWithOut = firstInOrOut !== undefined && isOut(firstInOrOut);
 
-    // 前日が勤務中のまま終わり、この日の最初の打刻が退勤（16 時間以内）なら日をまたぐ勤務
-    const overnight =
-      pending?.type === 'missing_clock_out' &&
-      pending.lastInAt !== undefined &&
-      diffDays(pending.date, date) === 1 &&
-      startsWithOut &&
-      firstInOrOut.stampedAt.getTime() - pending.lastInAt.getTime() <=
-        MAX_OVERNIGHT_SHIFT_MINUTES * 60_000;
-    if (pending && !overnight) reportOpenPunch(pending);
+    const continued = continuesOpenShift(pending, date, stamps);
+    if (pending && !continued) reportOpenPunch(pending);
+    const carried = continued ? pending : undefined;
     pending = undefined;
 
-    if (startsWithOut && !overnight && !recordHasClockIn(record))
+    if (startsWithOut && !continued && !recordHasClockIn(record))
       add(date, 'missing_clock_in', '出勤の打刻がないまま退勤しています');
 
     const status = computeDayStatus(stamps, endOfDay(date));
@@ -125,10 +121,24 @@ export function findAttendanceIssues(input: {
         ...(lastIn ? { lastInAt: lastIn.stampedAt } : {}),
       };
     }
-    if (status.state === 'on_break') pending = { date, type: 'missing_break_end' };
+    if (status.state === 'on_break') {
+      pending = {
+        date,
+        type: 'missing_break_end',
+        ...(lastIn ? { lastInAt: lastIn.stampedAt } : {}),
+      };
+    }
+    // 日付をまたいだあとも退勤が無い。この日の打刻だけでは昨日の出勤が見えない
+    if (carried && !stamps.some(isOut) && status.state === 'not_started') {
+      pending = {
+        date: carried.date,
+        type: 'missing_clock_out',
+        ...(carried.lastInAt ? { lastInAt: carried.lastInAt } : {}),
+      };
+    }
 
     const minutes = record?.actualWorkingMinutes ?? 0;
-    if (record?.dayCategory === 'workday' && stamps.length === 0 && minutes === 0 && !overnight) {
+    if (record?.dayCategory === 'workday' && stamps.length === 0 && minutes === 0 && !continued) {
       add(
         date,
         'no_punches_on_workday',
@@ -169,8 +179,35 @@ export function findAttendanceIssues(input: {
   }
   if (pending) reportOpenPunch(pending);
   return issues
-    .filter((issue) => issue.date >= input.range.from)
+    .filter((issue) => issue.date >= input.range.from && issue.date <= input.range.to)
     .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+}
+
+type OpenPunch = {
+  date: LocalDate;
+  type: 'missing_clock_out' | 'missing_break_end';
+  lastInAt?: Date;
+};
+
+/**
+ * 前日の勤務がこの日の打刻で続いているか。
+ * 出勤から 16 時間以内だけを同じ勤務とみなす。
+ */
+function continuesOpenShift(
+  pending: OpenPunch | undefined,
+  date: LocalDate,
+  stamps: readonly Stamp[],
+): boolean {
+  if (!pending?.lastInAt || diffDays(pending.date, date) !== 1) return false;
+  const within = (at: Date) =>
+    at.getTime() - (pending.lastInAt?.getTime() ?? 0) <= MAX_OVERNIGHT_SHIFT_MINUTES * 60_000;
+  if (pending.type === 'missing_clock_out') {
+    const firstInOrOut = stamps.find((s) => isIn(s) || isOut(s));
+    return firstInOrOut !== undefined && isOut(firstInOrOut) && within(firstInOrOut.stampedAt);
+  }
+  const first = stamps.find((s) => s.type === 'break_end' || isIn(s) || isOut(s));
+  if (!first || !within(first.stampedAt)) return false;
+  return first.type === 'break_end' || isOut(first);
 }
 
 function recordHasClockIn(record: WorkingRecord | undefined): boolean {

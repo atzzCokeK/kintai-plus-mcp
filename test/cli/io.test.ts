@@ -46,6 +46,23 @@ describe('createNodeIO', () => {
     piped.close();
   });
 
+  it('非 TTY では行を読み、raw mode には入らない', async () => {
+    const input = new FakeStdin();
+    input.isTTY = false;
+    const screen = stderrCapture();
+    const io = createNodeIO({ input, stdout: screen.stdout, stderr: screen.stderr });
+    expect(io.interactive).toBe(false);
+    const company = io.prompt('ログイン企業ID: ');
+    input.write('acme\n');
+    await expect(company).resolves.toBe('acme');
+    expect(input.raw).toBe(false);
+    const secret = io.promptSecret('APIトークン: ');
+    input.write('s3cret\n');
+    await expect(secret).resolves.toBe('s3cret');
+    expect(screen.text()).not.toContain('s3cret');
+    io.close();
+  });
+
   it('企業 ID のあと矢印で選び、raw mode を戻してからトークンを読める', async () => {
     const input = new FakeStdin();
     const screen = stderrCapture();

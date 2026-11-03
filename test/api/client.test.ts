@@ -146,6 +146,47 @@ describe('KintaiApiClient', () => {
     expect(calls).toHaveLength(1);
   });
 
+  it('429 は 1 回だけ再試行し、本文のトークンはログに出さない', async () => {
+    const { client, calls, logs } = setup([
+      json({ success: false, errors: [{ code: 'E', message: `slow ${TOKEN}` }] }, 429),
+      json({ success: false, errors: [] }, 429),
+    ]);
+    const err = await rejection(client.get([COMPANY_ID, 'staffs']));
+    expect(err.kind).toBe('rate_limited');
+    expect(err.retryable).toBe(true);
+    expect(calls).toHaveLength(2);
+    expect(logs.join('')).not.toContain(TOKEN);
+  });
+
+  it('GET の 5xx が続いても 3 回目は呼ばない', async () => {
+    const { client, calls } = setup([
+      json({ success: false, errors: [] }, 500),
+      json({ success: false, errors: [] }, 502),
+      json({ success: true, response: {} }),
+    ]);
+    expect((await rejection(client.get([COMPANY_ID, 'alerts']))).kind).toBe('server');
+    expect(calls).toHaveLength(2);
+  });
+
+  it('DELETE は 5xx でも再試行しない', async () => {
+    const { client, calls } = setup([
+      json({ success: false, errors: [] }, 503),
+      json({ success: true, response: {} }),
+    ]);
+    await rejection(client.delete([COMPANY_ID, 'manhours', 1], { date: '2026/10/27' }));
+    expect(calls).toHaveLength(1);
+  });
+
+  it('通信エラーの cause のコードは残し、トークンは残さない', async () => {
+    const error = new TypeError(`connect ${TOKEN}`);
+    error.cause = { code: 'ECONNRESET' };
+    const { client } = setup([error, error]);
+    const err = await rejection(client.get([COMPANY_ID, 'staffs']));
+    expect(err.kind).toBe('network');
+    expect(err.message).toContain('ECONNRESET');
+    expect(err.message).not.toContain(TOKEN);
+  });
+
   it('認証エラーなど再試行しても無駄なものは再試行しない', async () => {
     const { client, calls } = setup([json({ success: false, errors: [] }, 401)]);
     expect((await rejection(client.get([COMPANY_ID, 'staffs']))).kind).toBe('auth');

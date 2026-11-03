@@ -1,5 +1,7 @@
 ---
-"kintai-plus-mcp": minor
+"kintai-plus-mcp": major
 ---
 
-Add read-only `close_out` (scope day or month) so one call lists what is still unfinished: missing punches, breaks shorter than the Labor Standards Act requires, man-hours that are missing or off, the month's overtime estimate, and alerts. Each item includes the date and the next action. `end_of_day` and `monthly_review` now call it. Tool descriptions say when to use each tool, Japan-time defaults, and that punches cannot be undone. Successful results also include structuredContent; `close_out` publishes an output schema.
+1.0.0。この版から、ツール名・引数・プロンプト名を互換性の約束にします。壊す変更はメジャーバージョンで行います。
+
+`close_out` を追加し、1 日または月の残件（打刻漏れ、法定の休憩不足、工数、残業の目安、アラート）を 1 回で返します。ツールの説明を、いつ使うかと日本時間の既定が分かるように見直しました。日をまたぐ勤務の翌朝の退勤・休憩戻を打刻漏れと誤らないようにし、月の振り返りは日本時間の 1 日に逆順の期間を頼みません。

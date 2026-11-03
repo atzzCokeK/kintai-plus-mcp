@@ -106,7 +106,7 @@ describe('close_out', () => {
       ),
     );
     expect(seen.records).toEqual([{ from: '2026-10-01', to: '2026-10-31' }]);
-    expect(seen.stamps).toEqual([{ from: '2026-09-30', to: '2026-10-31' }]);
+    expect(seen.stamps).toEqual([{ from: '2026-09-30', to: '2026-11-01' }]);
     expect(seen.manhours).toEqual([{ from: '2026-10-01', to: '2026-10-31' }]);
     expect(out).toMatchObject({
       scope: 'month',

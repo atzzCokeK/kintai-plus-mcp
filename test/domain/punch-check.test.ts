@@ -26,6 +26,15 @@ describe('checkPunch', () => {
     ['on_break', 'break_start', /already on a break/i],
     ['finished', 'clock_in', /already clocked out/i],
     ['finished', 'clock_out', /already clocked out/i],
+    ['not_started', 'direct_out', /not clocked in/i],
+    ['not_started', 'break_end', /not clocked in/i],
+    ['working', 'direct_in', /already/i],
+    ['on_break', 'direct_in', /already/i],
+    ['on_break', 'direct_out', /on a break/i],
+    ['finished', 'direct_in', /already clocked out/i],
+    ['finished', 'direct_out', /already clocked out/i],
+    ['finished', 'break_start', /already clocked out/i],
+    ['finished', 'break_end', /already clocked out/i],
   ];
   it.each(conflicts)('%s のとき %s は矛盾', (state, type, reason) => {
     const r = checkPunch(state, type);

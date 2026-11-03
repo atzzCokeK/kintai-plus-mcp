@@ -1,5 +1,5 @@
 import * as z from 'zod/v4';
-import { todayInTokyo } from '../time/datetime.ts';
+import { addDays, startOfMonth, todayInTokyo } from '../time/datetime.ts';
 
 /**
  * 定型プロンプト（MCP Prompts）。クライアントのメニューから呼び出す、よくある頼み方のひな形。
@@ -35,7 +35,7 @@ export const ALL_PROMPTS: readonly PromptDefinition[] = [
       const today = todayInTokyo(now);
       return [
         `今日（${today}、日本時間）の退勤前の締めをしてください。`,
-        '1. close_out（scope=day）を 1 回だけ呼ぶ。get_today_status や get_manhours を先に連ねなくてよい。',
+        '1. close_out（scope=day）を 1 回だけ呼ぶ。日付を省略すると日本時間の今日になる。get_today_status や get_manhours を先に連ねなくてよい。',
         '2. ok が true で items が空なら「対応は不要です」と伝えて終わる。headline をそのまま使ってよい。',
         '3. items を priority 順に処理する。action に修正申請とある項目は Web 画面の案内だけして、punch しない。',
         '4. 工数を入れるときは、何にどれくらい使ったかを私に聞き、get_my_projects と list_tasks で ID を調べ、一覧を見せてから save_manhours する。',
@@ -84,12 +84,28 @@ export const ALL_PROMPTS: readonly PromptDefinition[] = [
     build: (args, now) => {
       const today = todayInTokyo(now);
       const month = args.month ?? today.slice(0, 7);
+      const from = `${month}-01`;
+      const isCurrent = month === today.slice(0, 7);
+      const yesterday = addDays(today, -1);
+      const to = isCurrent ? today : undefined;
+      const range = to ? `from=${from}, to=${to}` : `from=${from}（その月の末日まで）`;
+      // 1 日は yesterday が前月。from を今月 1 日のままにすると期間が逆順になる。
+      const firstOfMonth = isCurrent && yesterday < from;
+      const closedFrom = firstOfMonth ? startOfMonth(yesterday) : from;
+      const closedTo = firstOfMonth ? yesterday : isCurrent ? yesterday : undefined;
+      const closedRange = closedTo
+        ? `from=${closedFrom}, to=${closedTo}`
+        : `from=${from}（その月の末日まで）`;
+      const closeMonth = firstOfMonth ? yesterday.slice(0, 7) : month;
       return [
         `${month} の締めを確認してください。日付は日本時間です。`,
-        `1. close_out（scope=month, month=${month}）を 1 回だけ呼ぶ。summarize_working_hours、check_attendance_issues、get_alerts を別に連ねなくてよい。`,
-        '2. headline と items を短く伝える。ok が true で items が空なら「対応は不要です」と明言する。',
-        '3. 打刻の修正が必要な日は Web の修正申請。API の punch では過去を直せない。',
-        '4. overtime は目安なので disclaimer を添える。',
+        firstOfMonth
+          ? `1. 今月は 1 日なので、終わっているのは前月です。close_out（scope=month, month=${closeMonth}）を 1 回だけ呼ぶ。期間は ${closedRange}。今月 1 日から昨日までの指定は逆順になるので使わない。`
+          : `1. close_out（scope=month, month=${month}）を 1 回だけ呼ぶ。終わった日は ${closedRange}。今日が月の途中なら今日は進行中として扱う。集計の目安期間は ${range}。`,
+        '2. summarize_working_hours、check_attendance_issues、get_alerts を別に連ねなくてよい。',
+        '3. headline と items を短く伝える。ok が true で items が空なら「対応は不要です」と明言する。',
+        '4. 打刻の修正が必要な日は Web の修正申請。API の punch では過去を直せない。',
+        '5. overtime は目安なので disclaimer を添える。',
       ].join('\n');
     },
   }),
