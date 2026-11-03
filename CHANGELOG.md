@@ -7,6 +7,18 @@
 - プロンプト `monthly_review` → `end_of_month`
 - ツール `get_working_statuses` → `get_working_treatments`（勤務処理。打刻の `get_today_status` とは別）
 
+## 1.1.0
+
+### Minor Changes
+
+- [#39](https://github.com/atzzCokeK/kintai-plus-mcp/pull/39) [`a402b08`](https://github.com/atzzCokeK/kintai-plus-mcp/commit/a402b086f78b25779a6e1fc58d451dbce9b822fa) Thanks [@atzzCokeK](https://github.com/atzzCokeK)! - ツールに読み取り・破壊的・冪等・外部の注釈と title を付けた。書き込み前の確認は「毎回」「削除だけ」「しない」の 3 段階で、既定は削除だけ。対応クライアントでは確認ダイアログ、未対応では confirm: true まで実行しない。今日の状態、今月の締め、就業ルールを kintai:// のリソースでも公開する。
+
+- [#41](https://github.com/atzzCokeK/kintai-plus-mcp/pull/41) [`12dfc04`](https://github.com/atzzCokeK/kintai-plus-mcp/commit/12dfc04f7ff87158aed542084460f5da00ebac59) Thanks [@atzzCokeK](https://github.com/atzzCokeK)! - 管理者向けに `team_close_out` とプロンプト `team_end_of_month` を追加し、管理下の 1 日または月の残件を 1 回で返す。`get_working_records` に任意の `staffIds` を追加した。過去日の退勤漏れは日末まで数えず、休憩実績か法定の最低休憩を引いた見積もりを残業の目安に使う。
+
+### Patch Changes
+
+- [#42](https://github.com/atzzCokeK/kintai-plus-mcp/pull/42) [`df27289`](https://github.com/atzzCokeK/kintai-plus-mcp/commit/df272898adb52d056577701337489add70cedc47) Thanks [@atzzCokeK](https://github.com/atzzCokeK)! - 打刻漏れを、実績の開始・終了ではなく打刻と出勤・退勤打刻時刻で判断する。休憩打刻が無い日は不足と断定せず、読み取り専用では使えない書き込みツールを案内しない。企業 ID が無いときはその旨を出す。
+
 ## 1.0.0
 
 ### Major Changes
