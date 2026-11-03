@@ -36,18 +36,24 @@
 ## ツール
 
 - 起動時に権限（企業管理者／一般管理者／従業員）を確認し、一般の従業員には管理者向けツールを見せない。
-- 全員向け: `get_my_profile`, `get_today_status`（未出勤／勤務中／休憩中／退勤済みと、ここまでの勤務時間）, `close_out`（1 日または月の残件を 1 回で。打刻漏れ・法定休憩・工数・残業の目安・アラート）, `punch`【書】, `get_stamps`, `get_working_records`, `get_alerts`, `list_projects`, `list_tasks`, `get_my_projects`, `get_manhours`, `save_manhours`【書】, `delete_manhours`【書】, `summarize_working_hours`
+- 全員向け: `get_my_profile`, `get_today_status`（未出勤／勤務中／休憩中／退勤済みと、ここまでの勤務時間）, `close_out`（1 日または月の残件を 1 回で。打刻漏れ・法定休憩・工数・残業の目安・アラート）, `get_attendance_guide`（就業ルール・法定休憩・打刻種別。ライブのデータではない）, `punch`【書】, `get_stamps`, `get_working_records`, `get_alerts`, `list_projects`, `list_tasks`, `get_my_projects`, `get_manhours`, `save_manhours`【書】, `delete_manhours`【書】, `summarize_working_hours`
 - 管理者向け: `list_staff`, `get_team_stamps`, `get_working_treatments`（勤務処理。打刻の `get_today_status` とは別）, `get_project_members`
 - 非対応（v1）: 人事マスタの書き込み（従業員の登録・削除、権限、異動、個別就業設定、勤務処理の更新、組織作成、プロジェクト/タスクの作成・削除、プロジェクト従業員の追加・解除）、申請、スケジュール。
 - ツール名は英語の snake_case。説明文も英語で、勤怠用語は日本語を併記。
 
 ## 書き込みの安全策
 
-- 確認ダイアログは既定で出さない。
+- 確認は 3 段階。既定は「打刻は確認なし、削除だけ確認」（`destructive`）。ほかは「毎回確認する」（`always`）と「確認しない」（`never`）（2026-11-03、ADR 0010）。
+- `login` の対話で、接続先と同じ矢印キー選択で選んでもらい、認証情報とは別の `settings.json` に保存する。非対話の `login` は聞かない。
+- 環境変数 `KINTAI_PLUS_CONFIRM`（`always` / `destructive` / `never`）は保存した値より優先する。旧名 `KINTAI_PLUS_CONFIRM_WRITES` と `CONFIRM_WRITES` は、新しい名前が無いときだけ読む（`true` は毎回、`false` は確認しない）。
+- 確認が必要な操作で、クライアントが form の Elicitation を宣言していれば `elicitation/create` で内容を示して承認をもらう。decline / cancel は実行しない。宣言が無いクライアントは、任意引数 `confirm: true` が無ければ書き込まず、プレビューと再実行の案内を返す。
 - 打刻の種別は必須（API の「省略時に出勤/退勤を自動切り替え」は使わない）。
-- その日の打刻履歴と矛盾する打刻は弾く。`force: true` で実行可能。
-- 書き込みツールは `destructiveHint` を申告する。
-- 任意で `KINTAI_PLUS_CONFIRM_WRITES=true`（Elicitation で確認）と読み取り専用モードを選べる。0.1 では `CONFIRM_WRITES` という名前だった。ほかの設定と同じ接頭辞に揃えるため改名し、旧名も当面は読む（2026-10-31）。
+- その日の打刻履歴と矛盾する打刻は弾く。`force: true` で実行可能。この判定は確認より前で、読み取り専用モードもこれまでどおり。
+- 注釈は全ツールに付ける。`destructiveHint` はデータを消す操作だけ（工数の削除）。打刻は追加であり、誤打刻は修正申請で直せるので destructive ではない。工数の保存も destructive ではない。
+
+## リソース
+
+- `kintai://today`（`get_today_status`）、`kintai://close-out/month`（今月の `close_out`）、`kintai://guide`（`get_attendance_guide`）。リソースは補助で、同じ情報は必ずツールでも取れる（2026-11-03、ADR 0010）。
 
 ## データの扱い
 

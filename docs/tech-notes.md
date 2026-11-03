@@ -6,24 +6,23 @@
 
 - 旧 `@modelcontextprotocol/sdk` に代わる安定版。ドキュメント: https://ts.sdk.modelcontextprotocol.io/v2/ （Context7 ID: `/websites/ts_sdk_modelcontextprotocol_io_v2`）
 - stdio は `serveStdio(factory)`（`@modelcontextprotocol/server/stdio`）。既定 `legacy: 'serve'` で 2025 年版プロトコルのクライアントにも同じファクトリで応答する。ファクトリは接続ごとに 1 回呼ばれ、`McpServer` を同期で返す
-- ツール登録: `server.registerTool(name, { title, description, inputSchema: z.object(...), outputSchema, annotations: { readOnlyHint, destructiveHint, idempotentHint } }, handler)`。zod は `import * as z from 'zod/v4'`
+- ツール登録: `server.registerTool(name, { title, description, inputSchema: z.object(...), outputSchema, annotations: { title, readOnlyHint, destructiveHint, idempotentHint, openWorldHint } }, handler)`。zod は `import * as z from 'zod/v4'`。注釈は全ツールに 4 つとも付ける。`destructiveHint` は削除だけ（打刻と工数の保存は false）。就業ルールの `get_attendance_guide` だけ `openWorldHint: false`
 - `outputSchema` を付けたツールは、成功時に `structuredContent` が必須で、SDK がスキーマ検証に失敗するとツール呼び出し自体がエラーになる（`isError` ではなくプロトコルエラー）。`close_out` だけ出力スキーマを公開している。成功したオブジェクトはスキーマの有無にかかわらず `structuredContent` にも載せ、本文の JSON テキストは従来どおり残す。失敗は `{ content, isError: true, structuredContent: { message, hint } }`
 - 失敗はハンドラから `{ content: [...], isError: true }` を返す（対処のヒントを本文に入れる）
-- Elicitation（確認ダイアログ）: 2026-07-28 版仕様では、ツールが `inputRequired({ inputRequests: { confirm: inputRequired.elicit({ message, requestedSchema }) } })` を返し、クライアントが回答付きで再呼び出しする方式。回答は `acceptedContent(ctx.mcpReq.inputResponses, 'confirm', schema)` で取り出す。クライアントが未対応だとエラー（-32021）になる。旧方式の `ctx.mcpReq.elicitInput()` は非推奨
+- Elicitation（確認ダイアログ）: ハンドラは `inputRequired({ inputRequests: { confirm: inputRequired.elicit({ message, requestedSchema }) } })` を返す。2025 年版の接続では SDK の legacy shim がこれを `elicitation/create` に変換し、回答付きで同じハンドラを再実行する。回答は `inputResponse(ctx.mcpReq.inputResponses, 'confirm')` で、`accept` かつ `confirm: true` のときだけ続行する。`decline` / `cancel` は実行しない。旧方式の `ctx.mcpReq.elicitInput()` は非推奨。form を宣言していないクライアント（`elicitation` なし、または `url` だけ）には `inputRequired` を返さず、任意引数 `confirm: true` が無ければプレビューを返す
+- リソース: `server.registerResource(name, 'kintai://...', { title, description, mimeType }, read)`。初期化時の capabilities に `resources: {}` を足す。中身は対応するツールと同じ関数かハンドラ
 - 仕様上、Elicitation の form モードでパスワードやトークンを聞いてはいけない
 
-## クライアントの対応状況（Elicitation）
+## クライアントの対応状況（2026-11 調査）
 
-| クライアント | 対応 |
-|---|---|
-| Claude Code | あり |
-| Cursor | あり |
-| VS Code（Copilot） | あり |
-| Codex | おそらくあり |
-| Claude Desktop | 不明（おそらくなし） |
-| ChatGPT / Gemini CLI | なし |
+| 機能 | Claude Code | Cursor | VS Code | ChatGPT | Gemini CLI |
+|---|---|---|---|---|---|
+| ツール注釈 | あり | 未確認 | あり | あり | 未確認 |
+| Elicitation | あり | あり | あり | 未確認 | 未確認 |
+| Resources | あり | あり | あり | 未確認 | 一部 |
+| structuredContent | 未確認 | 未確認 | 未確認 | あり | 未確認 |
 
-- Claude Code は `destructiveHint` などのツール注釈で承認方法を変えない（MCP ツールはすべて同じように承認を求める）。VS Code は `readOnlyHint` のツールの確認を省く
+未確認は「無い」ではない。以前のメモ: Claude Code は `destructiveHint` で承認方法を変えない（MCP ツールはすべて同じように承認を求める）。VS Code は `readOnlyHint` のツールの確認を省く。
 
 ## キーチェーン（`@napi-rs/keyring` 2.1.x）
 
@@ -56,15 +55,17 @@
 
 - `src/cli/main.ts` の `runCli(argv, deps)` が本体。入出力・API・サーバー起動は差し替え可能（テストは偽の fetch と一時ディレクトリのファイル保存で通しで確認）
 - プロンプトは stderr に出す。トークン入力中は readline のエコーを止める
-- 対話端末の `login` は接続先を ↑/↓ と Enter で選ぶ（`src/cli/arrow-select.ts`）。最初に選ばれているのは `atnd.ak4.jp`。Ctrl+C は終了コード 130 で、エラー文は出さない。選択のあいだだけ stdin を raw mode にし、終わるときに戻す。企業 ID の readline は選択の前に閉じ、トークン入力で開き直す。プロンプト用ライブラリは使わない（企業 ID とトークンで既に readline を持っていて、2 項目のために stdin を二重にしない）。非 TTY と `--host` はこれまで通りホスト名か URL の 1 行で、空なら `atnd.ak4.jp`。`KINTAI_PLUS_HOST` は起動時の環境変数で、この質問とは別
+- 対話端末の `login` は接続先を ↑/↓ と Enter で選ぶ（`src/cli/arrow-select.ts`）。最初に選ばれているのは `atnd.ak4.jp`。そのあと、同じ操作で確認レベルを選ぶ（既定は削除だけ）。Ctrl+C は終了コード 130 で、エラー文は出さない。選択のあいだだけ stdin を raw mode にし、終わるときに戻す。企業 ID の readline は選択の前に閉じ、トークン入力で開き直す。プロンプト用ライブラリは使わない。非 TTY と `--host` はこれまで通りホスト名か URL の 1 行で、空なら `atnd.ak4.jp`。非 TTY は確認レベルを聞かない（保存済みを消さない）。`KINTAI_PLUS_HOST` は起動時の環境変数で、この質問とは別
 - パイプ入力では、readline が質問の前に届いた行を捨ててしまうため、読んだ行をキューに溜めて順に渡す（`src/cli/io.ts`）
 - `login` は「自分の従業員情報の取得で疎通確認 → 再発行で有効期限を確定（ADR 0007）→ 保存」。再発行に失敗しても疎通できたトークンは期限不明で保存する。管理者の `GET /staffs` は一覧なので、保存済みの staffId が無く一覧が 1 人に決まらないときは `GET /stamps` の `staff_id` で自分を決める（2026-10-29 確認）
-- 環境設定: `KINTAI_PLUS_REFRESH_DAYS`（1〜30、既定 15）、`KINTAI_PLUS_AUTO_REFRESH`、`KINTAI_PLUS_PERSIST_ENV_TOKEN`（既定 false）、`KINTAI_PLUS_READ_ONLY`、`KINTAI_PLUS_CONFIRM_WRITES`（旧名 `CONFIRM_WRITES` も読む）、`KINTAI_PLUS_INCLUDE_LOCATION`、`KINTAI_PLUS_LOG_LEVEL`、`KINTAI_PLUS_MIN_INTERVAL_MS`（100〜60000、既定 300）。`src/config.ts`
+- 環境設定: `KINTAI_PLUS_REFRESH_DAYS`（1〜30、既定 15）、`KINTAI_PLUS_AUTO_REFRESH`、`KINTAI_PLUS_PERSIST_ENV_TOKEN`（既定 false）、`KINTAI_PLUS_READ_ONLY`、`KINTAI_PLUS_CONFIRM`（`always` / `destructive` / `never`。未指定なら保存値、それも無ければ `destructive`）、`KINTAI_PLUS_INCLUDE_LOCATION`、`KINTAI_PLUS_LOG_LEVEL`、`KINTAI_PLUS_MIN_INTERVAL_MS`（100〜60000、既定 300）。`src/config.ts`
+- 旧名 `KINTAI_PLUS_CONFIRM_WRITES` と `CONFIRM_WRITES` は、`KINTAI_PLUS_CONFIRM` が無いときだけ読む。`true` は `always`、`false` は `never`
+- 確認レベルの保存先は認証情報と同じディレクトリの `settings.json`（`{ "confirm": "destructive" }`）。トークンは入れない。壊れていても起動は止めず、既定に戻して警告する
 
 ## MCP サーバー（T6）
 
 - ツールは `src/tools/registry.ts` の `defineTool` で定義し、`src/tools/index.ts` の `ALL_TOOLS` に並べる。必要な capability・対象（everyone/admin）・read/write を持たせ、`selectTools` で公開するものを決める
-- 返り値は JSON をテキスト 1 つで返す（`successResult`）。失敗は `isError: true` と `Hint:` 付きの本文（`errorResult`）。`ToolInputError`（入力の誤り）、`ToolRefusedError`（安全策で止めた。回避方法を hint に書く）を使い分ける
+- 返り値は JSON テキストと、オブジェクトなら同じ内容の `structuredContent`（`successResult`）。配列はテキストだけ。失敗は `isError: true` と `Hint:` 付きの本文（`errorResult`）。`ToolInputError`（入力の誤り）、`ToolRefusedError`（安全策で止めた。回避方法を hint に書く）を使い分ける。確認待ちのプレビューはエラーにせず `executed: false`（`previewResult`）
 - 起動時に `getMyProfile` で権限を確認する。未ログイン・通信失敗でも起動し、従業員向けツールだけを出す
 - API が認証エラーを返したら `TokenManager.invalidate()` で保存先を読み直す（別プロセスが更新した場合に追従するため）
 - テスト: `InMemoryTransport.createLinkedPair()` で JSON-RPC を直接送る簡易クライアント（`test/helpers/mcp-client.ts`）。stdio は `node src/cli.ts`（Node 22 の型除去）を実際に起動して確認する
@@ -72,11 +73,10 @@
 
 ## 書き込みの確認（T8）
 
-- 書き込みツールは事前チェックの後、書き込みの直前に `ctx.confirm(message)` を呼ぶ。`KINTAI_PLUS_CONFIRM_WRITES=true` のときだけ効く
-- 仕組み: `confirm` が内部シグナルを投げ → `createMcpServer` の包みが `inputRequired({ inputRequests: { confirm: inputRequired.elicit(...) } })` を返す → クライアントが回答付きで再呼び出し → `inputResponse(ctx.mcpReq.inputResponses, 'confirm')` で承認なら続行、拒否・キャンセルなら `ToolRefusedError`
-- 旧プロトコル（2025 年版）の接続では、SDK の legacy shim（既定で有効）が同じ戻り値を `elicitation/create` に変換して同じハンドラを再実行する。クライアントが elicitation を宣言していなければ `isError` の結果になり、書き込みは行われない
-- 再実行のたびに事前チェック（打刻の矛盾、締め・確定）もやり直される
-- 書き込みツールを増やしたら `test/tools/write-confirm.test.ts` にも足す（一覧のテストが落ちて気づける）
+- 書き込みツールは事前チェックの後、書き込みの直前に `ctx.confirm(message)` を呼ぶ。効くのは確認レベルがその操作を対象にするときだけ（既定は `delete_manhours` だけ）
+- 仕組み: クライアントが form の elicitation を宣言していれば、`confirm` が内部シグナルを投げ → `inputRequired` → 2025 年版では SDK が `elicitation/create` に変換して再実行 → `accept` かつ `confirm: true` なら続行、拒否・キャンセルなら `ToolRefusedError`。宣言が無ければ `confirm: true` が引数にあるときだけ続行し、無ければプレビューを返す
+- 事前チェック（打刻の矛盾、締め・確定）は確認より前。再実行のときもやり直す
+- 書き込みツールを増やしたら `destructive`（消す操作だけ true）を付け、`test/tools/write-confirm.test.ts` にも足す（一覧のテストが落ちて気づける）
 - 工数の保存は、API の「作成更新」が置き換えか追記か未確認のため、同じ日・同じプロジェクトの既存タスクを合わせて送る（どちらの仕様でも結果が同じになる）
 
 ## テストデータと手動 E2E（T11）

@@ -15,6 +15,8 @@ const failing = defineTool({
   capability: 'profile',
   audience: 'everyone',
   kind: 'write',
+  destructive: true,
+  idempotent: false,
   handler: async () => {
     throw new KintaiApiError({ kind: 'auth', message: 'expired' });
   },
@@ -36,8 +38,20 @@ describe('createMcpServer', () => {
     );
     const tools = await client.listTools();
     expect(tools.map((t) => t.name)).toEqual(['get_my_profile', 'always_fails']);
-    expect(tools[0]?.annotations).toMatchObject({ readOnlyHint: true });
-    expect(tools[1]?.annotations).toMatchObject({ destructiveHint: true });
+    expect(tools[0]?.annotations).toEqual({
+      title: 'Get my profile',
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: true,
+    });
+    expect(tools[1]?.annotations).toMatchObject({
+      title: 'Always fails',
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: false,
+      openWorldHint: true,
+    });
     expect(tools[1]?.inputSchema).toMatchObject({ properties: { n: { type: 'integer' } } });
   });
 

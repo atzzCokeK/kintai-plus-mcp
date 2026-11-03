@@ -28,6 +28,16 @@ export class ToolRefusedError extends Error {
   }
 }
 
+/** 確認が必要なのにダイアログを出せないとき。書き込みはしていない。 */
+export function previewResult(preview: string): ToolResult {
+  return successResult({
+    executed: false,
+    preview,
+    instruction:
+      'Nothing was changed. Re-run this tool with confirm: true to apply it.（confirm: true で再実行してください）',
+  });
+}
+
 export function successResult(data: unknown): ToolResult {
   const text = JSON.stringify(data);
   const structured =

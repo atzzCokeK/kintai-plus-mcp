@@ -2,7 +2,7 @@ import * as z from 'zod/v4';
 import type { ManhourDay, ManhourItem } from '../api/manhours.ts';
 import type { Task } from '../api/projects.ts';
 import { isValidLocalDate, type LocalDate } from '../time/datetime.ts';
-import { dateSchema, formatMinutes } from './common.ts';
+import { dateSchema, formatMinutes, writeConfirmField } from './common.ts';
 import { defineTool, type ToolContext } from './registry.ts';
 import { ToolInputError, ToolRefusedError } from './result.ts';
 
@@ -52,10 +52,13 @@ export const saveManhoursTool = defineTool({
       )
       .min(1)
       .max(50),
+    confirm: writeConfirmField,
   }),
   capability: 'manhours.write',
   audience: 'everyone',
   kind: 'write',
+  /** 指定したタスクの分数を置き換える。消すのは delete_manhours */
+  destructive: false,
   idempotent: true,
   handler: async (input, ctx) => {
     const keys = input.entries.map((e) => `${e.projectId}/${e.taskId}`);
@@ -168,10 +171,13 @@ export const deleteManhoursTool = defineTool({
       .describe(
         'One task to delete. Omit only when the user wants every task of this project on that day removed.',
       ),
+    confirm: writeConfirmField,
   }),
   capability: 'manhours.write',
   audience: 'everyone',
   kind: 'write',
+  /** 工数を消す。確認レベル destructive の対象 */
+  destructive: true,
   idempotent: true,
   handler: async (input, ctx) => {
     const day = await loadDay(input.date, ctx);

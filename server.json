@@ -51,11 +51,16 @@
           "default": "false"
         },
         {
-          "name": "KINTAI_PLUS_CONFIRM_WRITES",
-          "description": "Ask for confirmation (elicitation) before punches and man-hour changes",
+          "name": "KINTAI_PLUS_CONFIRM",
+          "description": "Write confirmation: always, destructive (deletes only; the default when unset), or never. Overrides the level saved at login.",
           "isRequired": false,
-          "format": "boolean",
-          "default": "false"
+          "choices": ["always", "destructive", "never"]
+        },
+        {
+          "name": "KINTAI_PLUS_CONFIRM_WRITES",
+          "description": "Legacy boolean. true means always, false means never. Ignored when KINTAI_PLUS_CONFIRM is set.",
+          "isRequired": false,
+          "format": "boolean"
         }
       ]
     }

@@ -64,7 +64,8 @@ async function call(name: string, args: Record<string, unknown> = {}) {
 describe('フィクスチャでの通しの動作', () => {
   it('一般管理者にはすべてのツールを公開する', async () => {
     expect(toolNames).toContain('close_out');
-    expect(toolNames).toHaveLength(20);
+    expect(toolNames).toHaveLength(21);
+    expect(toolNames).toContain('get_attendance_guide');
     expect((await client.listTools()).map((t) => t.name)).toEqual(toolNames);
   });
 
@@ -198,7 +199,19 @@ describe('フィクスチャでの通しの動作', () => {
     const post = api.requests.find((r) => r.method === 'POST' && r.path.endsWith('/manhours'));
     // 同じプロジェクトの別タスク（9002）は保ったまま送る
     expect(JSON.stringify(post?.body)).toContain('"task_id":9002');
-    const deleted = await call('delete_manhours', { date: '2026-10-01', projectId: 502 });
+    const deletes = () => api.requests.filter((r) => r.method === 'DELETE');
+    expect(deletes()).toHaveLength(0);
+    const preview = await call('delete_manhours', { date: '2026-10-01', projectId: 502 });
+    expect(preview.isError).toBe(false);
+    expect(preview.json).toMatchObject({ executed: false });
+    expect(preview.text).toContain('confirm: true');
+    expect(deletes()).toHaveLength(0);
+    const deleted = await call('delete_manhours', {
+      date: '2026-10-01',
+      projectId: 502,
+      confirm: true,
+    });
     expect(deleted.json).toMatchObject({ deleted: true });
+    expect(deletes()).toHaveLength(1);
   });
 });

@@ -3,7 +3,7 @@ import { KintaiApiClient, type RecordedResponse } from './api/client.ts';
 import type { Connection } from './api/endpoint.ts';
 import { RequestThrottle } from './api/throttle.ts';
 import { reissueToken } from './api/token.ts';
-import { type Config, loadConfig } from './config.ts';
+import { type Config, loadConfig, resolveConfirm } from './config.ts';
 import { defaultCredentialsPath } from './credentials/file-store.ts';
 import type { KeychainCredentialStore } from './credentials/keychain-store.ts';
 import { acquireFileLock } from './credentials/lock.ts';
@@ -15,6 +15,7 @@ import {
   CredentialsFormatError,
 } from './credentials/types.ts';
 import { createLogger, type Logger } from './log.ts';
+import { loadSavedConfirm, settingsPath } from './settings.ts';
 
 type Env = Record<string, string | undefined>;
 
@@ -44,11 +45,13 @@ export interface Runtime {
 /** 設定・ログ・保存先・トークン管理・API クライアントを組み立てる。 */
 export async function createRuntime(options: RuntimeOptions = {}): Promise<Runtime> {
   const env = options.env ?? process.env;
-  const config = loadConfig(env);
+  let config = loadConfig(env);
   const logger = createLogger({
     level: config.logLevel,
     ...(options.writeLog ? { write: options.writeLog } : {}),
   });
+  const savedConfirm = await loadSavedConfirm(settingsPath(env), (message) => logger.warn(message));
+  config = { ...config, ...resolveConfirm(env, savedConfirm) };
   const store = await selectCredentialStore({
     env,
     log: (m) => logger.warn(m),

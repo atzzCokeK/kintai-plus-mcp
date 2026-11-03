@@ -2,6 +2,7 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { CONFIRM_SELECT_MESSAGE, confirmSelectChoices } from '../../src/cli/confirm-prompt.ts';
 import { HOST_SELECT_MESSAGE } from '../../src/cli/host-prompt.ts';
 import { type CliDeps, type CliIO, runCli } from '../../src/cli/main.ts';
 import { VERSION } from '../../src/version.ts';
@@ -12,9 +13,11 @@ const NOW = new Date('2026-10-27T00:00:00Z');
 
 let dir: string;
 let credentialsFile: string;
+let settingsFile: string;
 beforeEach(async () => {
   dir = await mkdtemp(join(tmpdir(), 'kintai-plus-mcp-cli-'));
   credentialsFile = join(dir, 'credentials.json');
+  settingsFile = join(dir, 'settings.json');
 });
 afterEach(async () => {
   await rm(dir, { recursive: true, force: true });
@@ -165,6 +168,7 @@ describe('runCli', () => {
       expect(output).toContain('2026-11-28');
       expect(output).not.toContain(TOKEN);
       expect(output).not.toContain(NEW_TOKEN);
+      await expect(readFile(settingsFile)).rejects.toThrow();
     });
 
     it('フラグで企業 ID・接続先を渡せる', async () => {
@@ -185,6 +189,7 @@ describe('runCli', () => {
         '接続先（ログイン後の URL のドメイン）[atnd.ak4.jp / atnd-awj.ak4.jp]: ',
       );
       expect(h.selections).toEqual([]);
+      await expect(readFile(settingsFile)).rejects.toThrow();
     });
 
     it('非 TTY では番号を選ばない（1 は接続先にならない）', async () => {
@@ -199,11 +204,13 @@ describe('runCli', () => {
       const h = harness({
         interactive: true,
         answers: ['acme', TOKEN],
-        selectAnswers: ['atnd.ak4.jp'],
+        selectAnswers: ['atnd.ak4.jp', 'destructive'],
       });
       expect(await runCli(['login'], h.deps)).toBe(0);
       const saved = JSON.parse(await readFile(credentialsFile, 'utf8'));
       expect(saved.host).toBe('atnd.ak4.jp');
+      expect(JSON.parse(await readFile(settingsFile, 'utf8'))).toEqual({ confirm: 'destructive' });
+      expect(h.out.join('')).toContain('打刻は確認なし、削除だけ確認');
       expect(h.prompts).toEqual(['ログイン企業ID: ']);
       expect(h.selections).toEqual([
         {
@@ -215,6 +222,12 @@ describe('runCli', () => {
             'https://atnd-awj.ak4.jp/ でログインしている',
           ],
         },
+        {
+          message: CONFIRM_SELECT_MESSAGE,
+          defaultValue: 'destructive',
+          labels: confirmSelectChoices().map((choice) => choice.label),
+          hints: confirmSelectChoices().map((choice) => choice.hint ?? ''),
+        },
       ]);
     });
 
@@ -222,11 +235,12 @@ describe('runCli', () => {
       const h = harness({
         interactive: true,
         answers: ['acme', TOKEN],
-        selectAnswers: ['atnd-awj.ak4.jp'],
+        selectAnswers: ['atnd-awj.ak4.jp', 'always'],
       });
       expect(await runCli(['login'], h.deps)).toBe(0);
       const saved = JSON.parse(await readFile(credentialsFile, 'utf8'));
       expect(saved.host).toBe('atnd-awj.ak4.jp');
+      expect(JSON.parse(await readFile(settingsFile, 'utf8')).confirm).toBe('always');
     });
 
     it('対話端末の Ctrl+C はエラー文を出さず 130', async () => {
@@ -234,16 +248,35 @@ describe('runCli', () => {
       expect(await runCli(['login'], h.deps)).toBe(130);
       expect(allOutput(h)).not.toMatch(/エラー/);
       await expect(readFile(credentialsFile)).rejects.toThrow();
+      await expect(readFile(settingsFile)).rejects.toThrow();
+    });
+
+    it('確認レベルの Ctrl+C も保存せず 130', async () => {
+      const h = harness({
+        interactive: true,
+        answers: ['acme'],
+        selectAnswers: ['atnd.ak4.jp', 'cancel'],
+      });
+      expect(await runCli(['login'], h.deps)).toBe(130);
+      expect(allOutput(h)).not.toMatch(/エラー/);
+      await expect(readFile(credentialsFile)).rejects.toThrow();
+      await expect(readFile(settingsFile)).rejects.toThrow();
     });
 
     it('対話中でも --host を渡せば接続先を聞かない', async () => {
-      const h = harness({ interactive: true, answers: [TOKEN] });
+      const h = harness({
+        interactive: true,
+        answers: [TOKEN],
+        selectAnswers: ['never'],
+      });
       expect(
         await runCli(['login', '--company-id', 'acme', '--host', 'atnd-awj.ak4.jp'], h.deps),
       ).toBe(0);
-      expect(h.selections).toEqual([]);
+      expect(h.selections).toHaveLength(1);
+      expect(h.selections[0]?.message).toBe(CONFIRM_SELECT_MESSAGE);
       expect(h.prompts.join('\n')).not.toMatch(/接続先/);
       expect(JSON.parse(await readFile(credentialsFile, 'utf8')).host).toBe('atnd-awj.ak4.jp');
+      expect(JSON.parse(await readFile(settingsFile, 'utf8')).confirm).toBe('never');
     });
 
     it('--host が不正なら、対話端末でも矢印選択は出さない', async () => {
@@ -305,6 +338,13 @@ describe('runCli', () => {
       await expect(readFile(credentialsFile)).rejects.toThrow();
       expect(h.err.join('')).toMatch(/企業ID|接続先|トークン/);
       expect(allOutput(h)).not.toContain(TOKEN);
+    });
+
+    it('非 TTY の login は、保存済みの確認レベルを上書きしない', async () => {
+      await writeFile(settingsFile, '{"confirm":"always"}\n', { mode: 0o600 });
+      const h = harness({ answers: ['acme', '', TOKEN] });
+      expect(await runCli(['login'], h.deps)).toBe(0);
+      expect(JSON.parse(await readFile(settingsFile, 'utf8')).confirm).toBe('always');
     });
 
     it('保存ファイルが壊れていても login で上書きできる', async () => {
@@ -392,7 +432,32 @@ describe('runCli', () => {
       expect(out).toContain('2026-11-20');
       expect(out).toMatch(/残り 24 日/);
       expect(out).toContain('一般管理者');
+      expect(out).toContain('打刻は確認なし、削除だけ確認（既定）');
       expect(allOutput(h)).not.toContain(TOKEN);
+    });
+
+    it('保存した確認レベルを表示し、環境変数があればそちらを優先する', async () => {
+      await writeFile(
+        credentialsFile,
+        JSON.stringify({
+          version: 1,
+          host: 'atnd.ak4.jp',
+          companyId: 'acme',
+          token: TOKEN,
+          expiresAt: '2026-11-20T00:00:00.000Z',
+          updatedAt: '2026-10-20T00:00:00.000Z',
+        }),
+        { mode: 0o600 },
+      );
+      await writeFile(settingsFile, '{"confirm":"always"}\n', { mode: 0o600 });
+      const saved = harness();
+      expect(await runCli(['status'], saved.deps)).toBe(0);
+      expect(saved.out.join('')).toContain('毎回確認する（すべての書き込み）（login で保存）');
+
+      const overridden = harness({ env: { KINTAI_PLUS_CONFIRM: 'never' } });
+      expect(await runCli(['status'], overridden.deps)).toBe(0);
+      expect(overridden.out.join('')).toContain('確認しない（環境変数）');
+      expect(JSON.parse(await readFile(settingsFile, 'utf8')).confirm).toBe('always');
     });
   });
 

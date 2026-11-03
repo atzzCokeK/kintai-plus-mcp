@@ -3,6 +3,7 @@ import { STAMP_TYPE_CODES, STAMP_TYPE_LABEL, type StampType } from '../api/stamp
 import { computeDayStatus, DAY_STATE_LABEL } from '../domain/day-status.ts';
 import { checkPunch } from '../domain/punch-check.ts';
 import { formatIsoDateTime, todayInTokyo } from '../time/datetime.ts';
+import { writeConfirmField } from './common.ts';
 import { defineTool } from './registry.ts';
 import { ToolInputError, ToolRefusedError } from './result.ts';
 
@@ -33,11 +34,16 @@ export const punchTool = defineTool({
       .describe(
         "Punch even if it conflicts with today's punch history. Use only when the user explicitly asks.",
       ),
+    confirm: writeConfirmField,
   }),
   capability: 'stamps.write',
   audience: 'everyone',
   kind: 'write',
-  /** 打刻は毎回新しい記録になる */
+  /**
+   * 打刻は記録の追加。API では消せないが、修正申請で後から直せるので destructive ではない。
+   * 毎回新しい記録になるので冪等でもない。
+   */
+  destructive: false,
   idempotent: false,
   handler: async (input, ctx) => {
     if (input.telework && input.type !== 'clock_in') {

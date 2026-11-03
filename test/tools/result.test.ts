@@ -2,7 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { KintaiApiError } from '../../src/api/errors.ts';
 import { LimitExceededError } from '../../src/api/paging.ts';
 import { NotLoggedInError, TokenExpiredError } from '../../src/credentials/token-manager.ts';
-import { errorResult, successResult, ToolInputError } from '../../src/tools/result.ts';
+import {
+  errorResult,
+  previewResult,
+  successResult,
+  ToolInputError,
+} from '../../src/tools/result.ts';
 
 const text = (r: { content: Array<{ type: string; text?: string }> }) =>
   r.content.map((c) => c.text ?? '').join('');
@@ -13,6 +18,26 @@ describe('successResult', () => {
     expect(r.isError).toBeUndefined();
     expect(JSON.parse(text(r))).toEqual({ a: 1, b: '日本語' });
     expect(r.structuredContent).toEqual({ a: 1, b: '日本語' });
+  });
+
+  it('配列はテキストのままで、structuredContent は付けない', () => {
+    const r = successResult([1, 2]);
+    expect(JSON.parse(text(r))).toEqual([1, 2]);
+    expect(r.structuredContent).toBeUndefined();
+  });
+});
+
+describe('previewResult', () => {
+  it('書き込まず、confirm: true での再実行をテキストと structuredContent の両方に書く', () => {
+    const r = previewResult('Delete task 10?');
+    expect(r.isError).toBeUndefined();
+    expect(r.structuredContent).toMatchObject({
+      executed: false,
+      preview: 'Delete task 10?',
+    });
+    expect(text(r)).toContain('confirm: true');
+    expect(text(r)).toContain('confirm: true で再実行してください');
+    expect(JSON.parse(text(r))).toEqual(r.structuredContent);
   });
 });
 
