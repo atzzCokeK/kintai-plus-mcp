@@ -203,10 +203,10 @@ describe('findAttendanceIssues', () => {
     expect(issues).toEqual([expect.objectContaining({ type: 'holiday_work', severity: 'info' })]);
   });
 
-  it('勤務実績に開始・終了があれば、打刻が欠けていても打刻漏れにしない', () => {
+  it('退勤打刻があれば打刻漏れにしない。開始・終了だけ、別日の退勤、出勤打刻なしは指摘する', () => {
     const at = (iso: string) => new Date(iso);
     const issues = findAttendanceIssues({
-      range: { from: '2026-10-01', to: '2026-10-03' },
+      range: { from: '2026-10-01', to: '2026-10-09' },
       records: [
         {
           ...rec('2026-10-01', 'workday', 480),
@@ -218,7 +218,18 @@ describe('findAttendanceIssues', () => {
         },
         {
           ...rec('2026-10-03', 'workday', 480),
-          startTime: at('2026-10-03T09:00:00+09:00'),
+          startTime: at('2026-10-03T09:12:00+09:00'),
+        },
+        {
+          ...rec('2026-10-05', 'workday', 480),
+          clockInAt: at('2026-10-05T22:00:00+09:00'),
+          clockOutAt: at('2026-10-06T06:00:00+09:00'),
+        },
+        {
+          ...rec('2026-10-09', 'workday', 634),
+          startTime: at('2026-10-09T09:00:00+09:00'),
+          endTime: at('2026-10-09T19:00:00+09:00'),
+          clockOutAt: at('2026-10-13T17:51:00+09:00'),
         },
       ],
       stamps: [
@@ -226,9 +237,17 @@ describe('findAttendanceIssues', () => {
         s('clock_in', '2026-10-02T09:00:00+09:00'),
         s('break_start', '2026-10-02T12:00:00+09:00'),
         s('clock_out', '2026-10-03T18:00:00+09:00'),
+        s('clock_in', '2026-10-09T09:00:00+09:00'),
       ],
     });
-    expect(types(issues)).toEqual([]);
+    expect(types(issues)).toEqual([
+      '2026-10-02 missing_break_end',
+      '2026-10-03 missing_clock_in',
+      '2026-10-09 missing_clock_out',
+    ]);
+    expect(issues.find((issue) => issue.date === '2026-10-09')?.message).toMatch(/2026-10-13/);
+    expect(types(issues)).not.toContain('2026-10-01 missing_clock_out');
+    expect(types(issues)).not.toContain('2026-10-05 missing_clock_out');
   });
 
   it('休憩が不明な経過は、12 時間超を情報にし、1 時間引いても超えるときだけ警告にする', () => {

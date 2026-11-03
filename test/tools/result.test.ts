@@ -60,6 +60,7 @@ describe('errorResult', () => {
   ])('%s は isError とヒントを返す', (error, pattern) => {
     const r = errorResult(error);
     expect(r.isError).toBe(true);
+    expect(r.structuredContent).toBeUndefined();
     expect(text(r)).toMatch(pattern);
   });
 

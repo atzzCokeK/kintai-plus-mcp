@@ -132,9 +132,17 @@ describe('importFromEnv', () => {
     expect(store.saved).toHaveLength(0);
   });
 
-  it('環境変数が足りなければ何もしない', async () => {
+  it('トークンも企業 ID も無ければ何もしない', async () => {
     const store = memoryStore();
-    expect(await importFromEnv(store, { KINTAI_PLUS_TOKEN: 'x' }, NOW)).toBeUndefined();
+    expect(await importFromEnv(store, {}, NOW)).toBeUndefined();
+    expect(store.saved).toHaveLength(0);
+  });
+
+  it('トークンだけで企業 ID が無いときは、未ログインではなく企業 ID 不足', async () => {
+    const store = memoryStore();
+    await expect(importFromEnv(store, { KINTAI_PLUS_TOKEN: 'x' }, NOW)).rejects.toThrow(
+      /KINTAI_PLUS_COMPANY_ID/,
+    );
     expect(store.saved).toHaveLength(0);
   });
 

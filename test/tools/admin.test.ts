@@ -105,6 +105,31 @@ describe('get_team_stamps', () => {
     expect(out.summary).toMatchObject({ working: 0, missing_clock_out: 1 });
   });
 
+  it('退勤だけの日は未出勤ではなく出勤打刻なし', async () => {
+    const b = backend({
+      getTeamStamps: async () => ({
+        stamps: [
+          {
+            staffId: 1,
+            type: 'clock_out' as const,
+            typeCode: STAMP_TYPE_CODES.clock_out,
+            stampedAt: new Date('2026-10-26T18:00:00+09:00'),
+            attributes: {},
+          },
+        ],
+        truncated: false,
+      }),
+    });
+    const out = (await getTeamStampsTool.handler(
+      { date: '2026-10-26', staffIds: [1] },
+      fakeContext(b, {}, NOW),
+    )) as { staff: Array<{ state: string; stateLabel: string }> };
+    expect(out.staff[0]).toMatchObject({
+      state: 'missing_clock_in',
+      stateLabel: '出勤打刻なし',
+    });
+  });
+
   it('既定は今日・管理下の全員。各人の状況をまとめて返す', async () => {
     const seen: unknown[] = [];
     const b = backend({

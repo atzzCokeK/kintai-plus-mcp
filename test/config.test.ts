@@ -109,7 +109,9 @@ describe('loadConfig', () => {
     });
 
     it('不正な値は、指定された変数名つきのエラー', () => {
-      expect(() => loadConfig({ KINTAI_PLUS_CONFIRM: 'maybe' })).toThrow(/KINTAI_PLUS_CONFIRM/);
+      expect(() => loadConfig({ KINTAI_PLUS_CONFIRM: 'maybe' })).toThrow(
+        /KINTAI_PLUS_CONFIRM must be one of: always, destructive, never/,
+      );
       expect(() => loadConfig({ KINTAI_PLUS_CONFIRM_WRITES: 'maybe' })).toThrow(
         /KINTAI_PLUS_CONFIRM_WRITES/,
       );

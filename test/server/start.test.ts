@@ -62,6 +62,23 @@ describe('buildServerSetup', () => {
     expect(setup.tools.map((t) => t.name)).toContain('list_staff');
   });
 
+  it('企業 ID が無いトークンは、未ログインではなく企業 ID 不足と案内する', async () => {
+    const { runtime, logs } = await runtimeWith(undefined, {
+      KINTAI_PLUS_TOKEN: 'env-token-abcdef',
+    });
+    const setup = await buildServerSetup(runtime);
+    expect(setup.role).toBe('employee');
+    expect(logs.join('\n')).toMatch(/KINTAI_PLUS_COMPANY_ID/);
+    expect(logs.join('\n')).not.toMatch(/Not logged in/);
+    const client = await connectTestClient(setup.createServer());
+    const res = await client.callTool('get_my_profile');
+    expect(res.isError).toBe(true);
+    expect(res.structuredContent).toBeUndefined();
+    expect(res.text).toMatch(/KINTAI_PLUS_COMPANY_ID/);
+    expect(res.text).not.toMatch(/No Kintai Plus credentials/);
+    await client.close();
+  });
+
   it('未ログインでも起動でき、ツールは login を案内する', async () => {
     const { runtime, logs } = await runtimeWith(undefined);
     const setup = await buildServerSetup(runtime);

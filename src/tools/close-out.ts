@@ -192,6 +192,7 @@ export const closeOutTool = defineTool({
       manhours,
       alerts,
       ...(gaps.length > 0 ? { gaps } : {}),
+      ...(ctx.config.readOnly ? { readOnly: true } : {}),
     });
   },
 });

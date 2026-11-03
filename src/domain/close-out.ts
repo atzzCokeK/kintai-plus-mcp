@@ -19,6 +19,7 @@ import {
 import { computeDayStatus, DAY_STATE_LABEL, type DayState, type DayStatus } from './day-status.ts';
 import { assessOvertimeRisk, type OvertimeRisk, type RiskLevel } from './overtime-risk.ts';
 import { UNKNOWN_BREAK_NOTE } from './summary.ts';
+import { recordedNetMinutes } from './worked-minutes.ts';
 
 /**
  * 労働基準法 34 条。6 時間・8 時間ちょうどは「超える」に含めない。
@@ -49,6 +50,7 @@ export const CLOSEOUT_DISCLAIMER =
 export type CloseoutCode =
   | IssueType
   | 'short_break'
+  | 'no_break_punches'
   | 'open_break'
   | 'overnight_open'
   | 'still_working'
@@ -132,6 +134,8 @@ export interface CloseoutInput {
   alerts: readonly Alert[];
   /** 取れなかった API。警告項目にする */
   gaps?: readonly string[];
+  /** 読み取り専用のとき、punch など書き込みツールの案内を付けない */
+  readOnly?: boolean;
 }
 
 const BLOCKS_READY = new Set<CloseoutCode>([
@@ -253,7 +257,7 @@ export function buildCloseout(input: CloseoutInput): CloseoutReport {
           (issue.type === 'missing_clock_out' || issue.type === 'missing_break_end'),
       );
       if (!open && status.state === 'finished') {
-        pushShortBreak(items, date, status, 'past');
+        pushShortBreak(items, date, status, 'past', recordByDate.get(date));
         pushManhours(items, date, status.workedMinutes, manhourByDate.get(date), false);
       }
     }
@@ -289,6 +293,12 @@ export function buildCloseout(input: CloseoutInput): CloseoutReport {
     });
   }
 
+  if (input.readOnly) {
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item) items[i] = withoutWriteTool(item);
+    }
+  }
   items.sort(compareItems);
   items.forEach((item, index) => {
     item.priority = index + 1;
@@ -300,7 +310,7 @@ export function buildCloseout(input: CloseoutInput): CloseoutReport {
   const ok = todo === 0;
   const readyToClose = ok && items.every((item) => !BLOCKS_READY.has(item.code));
   const label = scope === 'day' ? input.date : input.month;
-  const headline = headlineFor(label, todo, readyToClose, items.length);
+  const headline = headlineFor(label, todo, readyToClose, items);
   const breakTimeUnknown = input.records.some((r) => r.workingMinutesAreGross === true);
 
   const report: CloseoutReport = {
@@ -419,13 +429,13 @@ function pushLive(
 ): void {
   if (status.state === 'on_break') {
     const need = requiredBreakMinutes(status.workedMinutes);
-    if (status.breakMinutes < need) pushShortBreak(items, today, status, 'stay');
+    if (status.breakMinutes < need) pushShortBreak(items, today, status, 'stay', record);
     else items.push(openBreakItem(today));
     pushManhours(items, today, status.workedMinutes, manhours, true);
     return;
   }
   if (status.state === 'working') {
-    pushShortBreak(items, today, status, 'before_leave');
+    pushShortBreak(items, today, status, 'before_leave', record);
     items.push({
       priority: 0,
       severity: 'info',
@@ -442,7 +452,7 @@ function pushLive(
     return;
   }
   if (status.state === 'finished') {
-    pushShortBreak(items, today, status, 'past');
+    pushShortBreak(items, today, status, 'past', record);
     pushManhours(items, today, status.workedMinutes, manhours, false);
     return;
   }
@@ -484,8 +494,26 @@ function pushShortBreak(
   date: LocalDate,
   status: DayStatus,
   mode: 'past' | 'stay' | 'before_leave',
+  record?: WorkingRecord,
 ): void {
-  const need = requiredBreakMinutes(status.workedMinutes);
+  const net = recordedNetMinutes(record) ?? status.workedMinutes;
+  if (status.breakMinutes === 0 && mode === 'past') {
+    if (requiredBreakMinutes(net) === 0) return;
+    items.push({
+      priority: 0,
+      severity: 'info',
+      code: 'no_break_punches',
+      date,
+      title: '休憩打刻がありません',
+      detail:
+        `休憩の打刻はありません。実働は ${formatHm(net)}。` +
+        '勤怠Plus が休憩を自動で引いている可能性があるので、不足とは断定しません。',
+      action:
+        '画面の実働が足りていれば対応は不要です。実際に休憩が足りないときは、勤怠Plus の Web 画面から修正申請してください。',
+    });
+    return;
+  }
+  const need = requiredBreakMinutes(net);
   if (need === 0 || status.breakMinutes >= need) return;
   const shortBy = need - status.breakMinutes;
   const title =
@@ -493,7 +521,7 @@ function pushShortBreak(
       ? '休憩が打刻されていません'
       : `休憩が ${status.breakMinutes} 分しかありません`;
   const detail =
-    `打刻上の休憩は ${status.breakMinutes} 分、実働は ${formatHm(status.workedMinutes)}。` +
+    `打刻上の休憩は ${status.breakMinutes} 分、実働は ${formatHm(net)}。` +
     `${BREAK_RULE}必要 ${need} 分、あと ${shortBy} 分足りません。`;
   const action =
     mode === 'stay'
@@ -677,10 +705,36 @@ function compareItems(a: CloseoutItem, b: CloseoutItem): number {
   return (CODE_RANK[a.code] ?? 50) - (CODE_RANK[b.code] ?? 50);
 }
 
-function headlineFor(label: string, todo: number, ready: boolean, itemCount: number): string {
+const WRITE_TOOLS = new Set(['punch', 'save_manhours', 'delete_manhours']);
+
+function withoutWriteTool(item: CloseoutItem): CloseoutItem {
+  if (!item.tool || !WRITE_TOOLS.has(item.tool)) return item;
+  const action =
+    item.tool === 'punch'
+      ? 'このサーバーは読み取り専用です。打刻はできません。勤怠Plus の Web 画面から打刻または修正申請をしてください。'
+      : 'このサーバーは読み取り専用です。工数の変更はできません。勤怠Plus の Web 画面から行ってください。';
+  const next: CloseoutItem = { ...item, action };
+  delete next.tool;
+  delete next.toolArgs;
+  return next;
+}
+
+function headlineFor(
+  label: string,
+  todo: number,
+  ready: boolean,
+  items: readonly CloseoutItem[],
+): string {
   if (todo > 0) return `先に ${todo} 件対応してください。items を priority 順に処理してください。`;
-  if (ready && itemCount === 0) return `${label} は締められます。対応は不要です。`;
+  if (ready && items.length === 0) return `${label} は締められます。対応は不要です。`;
   if (ready) return '対応は不要です。参考情報が items にあります。';
+  const codes = new Set(items.map((item) => item.code));
+  if (codes.has('not_clocked_in') && !codes.has('still_working') && !codes.has('open_break')) {
+    return '未出勤です。出勤するなら打刻し、休暇なら対応は不要です。';
+  }
+  if (codes.has('still_working') && !codes.has('open_break')) {
+    return 'まだ勤務中です。退勤するときは items の案内に従ってください。';
+  }
   return '急ぎの対応はありません。items の案内に従って、休憩を戻すか退勤してください。';
 }
 
