@@ -74,9 +74,87 @@ describe('get_working_records', () => {
           actualWorkingHours: '46:03',
           actualWorkingMinutesEstimated: true,
           breakTime: 'unknown',
+          estimatedNetMinutes: 2703,
+          assumedBreakMinutes: 60,
         },
       ],
     });
+  });
+
+  it('休憩実績がある経過時間は、引いた実働を併記する', async () => {
+    const backend = fakeBackend({
+      getWorkingRecords: async () => [
+        {
+          date: '2026-10-01',
+          dayCategory: 'workday' as const,
+          actualWorkingMinutes: 540,
+          workingMinutesAreGross: true,
+          breakMinutes: 60,
+        },
+      ],
+    });
+    const out = await getWorkingRecordsTool.handler(
+      { from: '2026-10-01', to: '2026-10-01' },
+      fakeContext(backend, {}, NOW),
+    );
+    expect(out).toMatchObject({
+      records: [
+        {
+          actualWorkingMinutes: 540,
+          breakMinutes: 60,
+          netWorkingMinutes: 480,
+          netWorkingHours: '8:00',
+        },
+      ],
+    });
+  });
+
+  it('staffIds を渡したときだけ、その従業員の実績を staffId 付きで返す', async () => {
+    const seen: number[][] = [];
+    const backend = fakeBackend({
+      listStaff: async () => ({
+        staff: [
+          { staffId: 1, name: '架空 花子', staffNum: 'A001' },
+          { staffId: 2, name: '架空 太郎', staffNum: 'A002' },
+        ],
+        totalCount: 2,
+        truncated: false,
+      }),
+      getWorkingRecords: async (_range, options) => {
+        seen.push(options?.staffIds ?? []);
+        return [
+          {
+            staffId: 2,
+            date: '2026-10-01',
+            dayCategory: 'workday' as const,
+            actualWorkingMinutes: 480,
+          },
+        ];
+      },
+    });
+    const out = (await getWorkingRecordsTool.handler(
+      { from: '2026-10-01', to: '2026-10-02', staffIds: [2, 2] },
+      fakeContext(backend, {}, NOW),
+    )) as { records: Array<{ staffId?: number; date: string }> };
+    expect(seen).toEqual([[2]]);
+    expect(out.records[0]?.staffId).toBe(2);
+
+    let called = false;
+    const reject = fakeBackend({
+      listStaff: async () => ({
+        staff: [{ staffId: 1, name: '架空 花子' }],
+        totalCount: 1,
+        truncated: false,
+      }),
+      getWorkingRecords: async () => {
+        called = true;
+        return [];
+      },
+    });
+    await expect(
+      getWorkingRecordsTool.handler({ staffIds: [999] }, fakeContext(reject, {}, NOW)),
+    ).rejects.toThrow(/999/);
+    expect(called).toBe(false);
   });
 
   it('最大 366 日', async () => {

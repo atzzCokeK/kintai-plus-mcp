@@ -1,7 +1,7 @@
 import { type Alert, parseAlerts } from '../api/alerts.ts';
 import type { KintaiApiClient } from '../api/client.ts';
 import { COMPANY_ID } from '../api/endpoint.ts';
-import { API_CODE, hasErrorCode } from '../api/errors.ts';
+import { API_CODE, hasErrorCode, KintaiApiError } from '../api/errors.ts';
 import { type ManhourDay, parseManhours } from '../api/manhours.ts';
 import { chunk, type DateRange, paginate, splitByDays, splitByMonths } from '../api/paging.ts';
 import {
@@ -146,17 +146,60 @@ export class ApiBackend implements KintaiBackend {
     const periods = splitByDays(range.from, range.to, WORKING_RECORD_MAX_DAYS, { maxChunks: 13 });
     for (const ids of chunk(staffIds, WORKING_RECORD_STAFF_PER_REQUEST)) {
       for (const period of periods) {
-        const res = await client.get([COMPANY_ID, 'working_records'], {
-          staff_ids: ids,
-          start_date: formatCompactDate(period.from),
-          end_date: formatCompactDate(period.to),
-        });
-        records.push(...parseWorkingRecords(res, ids.length === 1 ? ids[0] : undefined));
+        const res = await this.#fetchWorkingRecordsPage(client, ids, period);
+        const fallbackStaffId = ids.length === 1 ? ids[0] : undefined;
+        records.push(
+          ...parseWorkingRecords(res, fallbackStaffId).filter(
+            (r) => r.date >= period.from && r.date <= period.to,
+          ),
+        );
       }
     }
     return records.sort((a, b) =>
       a.date === b.date ? (a.staffId ?? 0) - (b.staffId ?? 0) : a.date < b.date ? -1 : 1,
     );
+  }
+
+  /**
+   * 仕様の include_actual_working_hours_no_rounding は期間指定と併用できる。
+   * include_break_results は end_date と併用できないので、1 日だけのとき追加で取る。
+   * どちらも実応答は未検証。400（invalid_request）や休憩が無い応答は、従来の取り方に落とす。
+   */
+  async #fetchWorkingRecordsPage(
+    client: KintaiApiClient,
+    ids: number[],
+    period: DateRange,
+  ): Promise<unknown> {
+    const path = [COMPANY_ID, 'working_records'] as const;
+    const staff_ids = ids;
+    const start_date = formatCompactDate(period.from);
+    const end_date = formatCompactDate(period.to);
+    const fallbackStaffId = ids.length === 1 ? ids[0] : undefined;
+    let res: unknown;
+    try {
+      res = await client.get(path, {
+        staff_ids,
+        start_date,
+        end_date,
+        include_actual_working_hours_no_rounding: 1,
+      });
+    } catch (error) {
+      if (!isIgnoredParamError(error)) throw error;
+      res = await client.get(path, { staff_ids, start_date, end_date });
+    }
+    if (period.from !== period.to || hasMeasuredTime(res, fallbackStaffId)) return res;
+    try {
+      const richer = await client.get(path, {
+        staff_ids,
+        start_date,
+        include_break_results: 1,
+        include_actual_working_hours_no_rounding: 1,
+      });
+      if (hasMeasuredTime(richer, fallbackStaffId)) return richer;
+    } catch (error) {
+      if (!isIgnoredParamError(error)) throw error;
+    }
+    return res;
   }
 
   async getAlerts(): Promise<Alert[]> {
@@ -355,6 +398,20 @@ export class ApiBackend implements KintaiBackend {
     if (staff.organizationName !== undefined) profile.organizationName = staff.organizationName;
     return profile;
   }
+}
+
+/** 追加パラメータを API が拒否したときだけ、付けずに取り直す。 */
+function isIgnoredParamError(error: unknown): boolean {
+  return error instanceof KintaiApiError && error.kind === 'invalid_request';
+}
+
+/** 実働（まるめなし）か休憩実績が応答に含まれている。含まれていなければ見積もりに落とす。 */
+function hasMeasuredTime(value: unknown, staffId: number | undefined): boolean {
+  return parseWorkingRecords(value, staffId).some(
+    (r) =>
+      r.breakMinutes !== undefined ||
+      (r.actualWorkingMinutes !== undefined && r.workingMinutesAreGross !== true),
+  );
 }
 
 /** 見えるプロジェクトが 0 件のとき API は 404 ERR301900 を返す。空として扱う。 */

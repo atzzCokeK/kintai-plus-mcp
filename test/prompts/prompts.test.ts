@@ -15,6 +15,7 @@ describe('selectPrompts', () => {
       'log_manhours',
       'end_of_month',
       'team_status',
+      'team_end_of_month',
     ]);
     const employeeReadOnly = new Set(
       ALL_TOOLS.filter((t) => t.audience === 'everyone' && t.kind === 'read').map((t) => t.name),
@@ -72,6 +73,14 @@ describe('MCP Prompts', () => {
     const team = (await client.request('prompts/get', { name: 'team_status', arguments: {} }))
       .result as { messages: Array<{ content: { text: string } }> };
     expect(team.messages[0]?.content.text).toContain('get_team_stamps');
+
+    const monthEnd = (
+      await client.request('prompts/get', { name: 'team_end_of_month', arguments: {} })
+    ).result as { messages: Array<{ content: { text: string } }> };
+    const monthEndText = monthEnd.messages[0]?.content.text ?? '';
+    expect(monthEndText).toContain('team_close_out');
+    expect(monthEndText).toContain('staffId');
+    expect(monthEndText).toContain('2026-10');
   });
 
   it('日本時間で 1 日の 0 時台なら、締めは前月を見る（from が to より後にならない）', async () => {

@@ -1,4 +1,5 @@
 import type { WorkingRecord } from '../api/working-records.ts';
+import { readWorkingMinutes } from './worked-minutes.ts';
 
 /** 1 日の法定労働時間（分） */
 const DAILY_LIMIT_MINUTES = 8 * 60;
@@ -20,13 +21,17 @@ export interface WorkingHoursSummary {
   overDailyLimitMinutes: number;
   /** 法定休日の労働時間（全時間） */
   legalHolidayMinutes: number;
-  /** 休憩を除いた実働が無く、開始〜終了の経過（休憩を含む）で数えた日がある */
+  /** 休憩が不明で、法定の最低休憩を引いた見積もりを使った日がある */
   breakTimeUnknown: boolean;
+  /** 実働が無く、経過から休憩実績か法定休憩を引いて数えた日がある */
+  minutesAreEstimated: boolean;
+  /** 見積もった日の、引く前の経過の合計。併記用。見積もりが無いときは 0 */
+  grossElapsedMinutes: number;
 }
 
 /** ツールの注意書きに足す。実働が経過時間のときに使う。 */
 export const UNKNOWN_BREAK_NOTE =
-  '勤務実績 API は実働時間と休憩を返さないため、実働は開始時刻から終了時刻までの経過（休憩を含む）の目安です。休憩時間は不明です。';
+  '実働時間が無い日は、開始から終了までの経過です。休憩実績があればそれを引き、無いときは法定の最低休憩（6時間超で45分、8時間超で60分）を引いた見積もりを実働に使います。実際の休憩がこれより長いと多め、短いと少なめです。引く前の経過は grossElapsedMinutes に併記します。';
 
 /**
  * 勤務実績から集計する（ADR 0006）。法定時間外は「目安」:
@@ -46,11 +51,18 @@ export function summarizeWorkingHours(records: readonly WorkingRecord[]): Workin
     overDailyLimitMinutes: 0,
     legalHolidayMinutes: 0,
     breakTimeUnknown: false,
+    minutesAreEstimated: false,
+    grossElapsedMinutes: 0,
   };
   for (const record of records) {
-    const minutes = Math.max(0, record.actualWorkingMinutes ?? 0);
+    const reading = readWorkingMinutes(record);
+    if (reading.basis === 'statutory_minimum') s.breakTimeUnknown = true;
+    if (reading.basis === 'statutory_minimum' || reading.basis === 'break_results') {
+      s.minutesAreEstimated = true;
+      s.grossElapsedMinutes += reading.elapsedMinutes ?? 0;
+    }
+    const minutes = Math.max(0, reading.netMinutes);
     if (minutes === 0) continue;
-    if (record.workingMinutesAreGross) s.breakTimeUnknown = true;
     s.workDays++;
     s.totalWorkingMinutes += minutes;
     if (record.dayCategory === 'legal_holiday') {

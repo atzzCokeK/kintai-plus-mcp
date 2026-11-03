@@ -64,8 +64,9 @@ async function call(name: string, args: Record<string, unknown> = {}) {
 describe('フィクスチャでの通しの動作', () => {
   it('一般管理者にはすべてのツールを公開する', async () => {
     expect(toolNames).toContain('close_out');
-    expect(toolNames).toHaveLength(21);
     expect(toolNames).toContain('get_attendance_guide');
+    expect(toolNames).toContain('team_close_out');
+    expect(toolNames).toHaveLength(22);
     expect((await client.listTools()).map((t) => t.name)).toEqual(toolNames);
   });
 
@@ -78,6 +79,7 @@ describe('フィクスチャでの通しの動作', () => {
       'log_manhours',
       'end_of_month',
       'team_status',
+      'team_end_of_month',
     ]);
   });
 
@@ -114,16 +116,19 @@ describe('フィクスチャでの通しの動作', () => {
           actualWorkingMinutes: 630,
           actualWorkingMinutesEstimated: true,
           breakTime: 'unknown',
+          estimatedNetMinutes: 570,
+          assumedBreakMinutes: 60,
         }),
       ]),
     });
     const summary = await call('summarize_working_hours', { from: '2026-10-01', to: '2026-10-04' });
     expect(summary.json).toMatchObject({
-      totalWorkingMinutes: 1350,
+      totalWorkingMinutes: 1230,
       workDays: 3,
       holidayWorkDays: 1,
       legalHolidayWorkDays: 1,
-      estimatedOvertimeMinutes: 390,
+      estimatedOvertimeMinutes: 270,
+      grossElapsedMinutes: 1350,
       breakTimeUnknown: true,
     });
     expect(summary.text).toContain('目安');

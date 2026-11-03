@@ -149,6 +149,7 @@ const CODE_RANK: Partial<Record<CloseoutCode, number>> = {
   missing_break_end: 3,
   missing_clock_out: 4,
   missing_clock_in: 5,
+  duplicate_clock_in: 5,
   no_punches_on_workday: 6,
   manhours_missing: 7,
   manhours_mismatch: 8,
@@ -171,6 +172,7 @@ const ALERT_COVERED_BY: Partial<Record<number, readonly CloseoutCode[]>> = {
   1: [
     'missing_clock_out',
     'missing_clock_in',
+    'duplicate_clock_in',
     'missing_break_end',
     'no_punches_on_workday',
     'open_break',
@@ -357,6 +359,7 @@ function actionForIssue(type: IssueType): string {
     case 'missing_clock_out':
     case 'missing_break_end':
     case 'missing_clock_in':
+    case 'duplicate_clock_in':
       return CORRECTION;
     case 'no_punches_on_workday':
       return '休暇・欠勤なら対応不要です。出勤したのに打刻が無い場合は、勤怠Plus の Web 画面から修正申請してください。API の punch では過去の打刻を作れません。';

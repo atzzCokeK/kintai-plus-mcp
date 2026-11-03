@@ -32,7 +32,7 @@
 | `get_attendance_guide` | 就業ルール・法定休憩・打刻種別の説明（いまの勤務データではない） |
 | `punch` 【書き込み】 | 打刻（出勤・退勤・直行・直帰・休憩入・休憩戻、テレワーク） |
 | `get_stamps` | 打刻履歴（長い期間は自動で分割） |
-| `get_working_records` | 勤務実績（労働区分・時刻・実働・休憩。31 日ごとに自動で分割） |
+| `get_working_records` | 勤務実績（労働区分・時刻・実働・休憩。31 日ごとに自動で分割）。任意の `staffIds` で管理下の従業員も取れる。省略時は本人 |
 | `summarize_working_hours` | 実働合計・出勤日数・休日出勤日数・法定時間外の目安（月ごとの内訳つき） |
 | `get_alerts` | アラート（打刻忘れ、遅刻、36協定 など） |
 | `check_attendance_issues` | 打刻漏れチェック（退勤・出勤・休憩戻の打刻忘れ、12 時間超の日、勤務間インターバル 11 時間未満、休日出勤）。勤務実績にその時刻がある日は打刻漏れにしない。休憩が不明な経過時間は、12 時間超を情報にとどめる |
@@ -45,7 +45,8 @@
 | ツール | 内容 |
 |---|---|
 | `list_staff` | 管理下の従業員の一覧（ID・氏名・社員番号・所属のみ） |
-| `get_team_stamps` | 管理下の従業員の 1 日分の打刻と状況 |
+| `get_team_stamps` | 管理下の従業員の 1 日分の打刻と状況。過去日の退勤なしは「退勤打刻なし」で、その日の終わりまでは数えない |
+| `team_close_out` | 管理下の 1 日または月の締め。勤務実績を主に、打刻漏れ・出勤の重複・法定休憩・11 時間のインターバル・残業の目安（36 時間と 45 時間）を 1 回で返す。問題が無い人は人数だけ。実績も打刻も無い人は別。アラートと工数未入力は見ない |
 | `get_working_treatments` | 勤務処理のラベル（欠勤・出張など）。打刻の `get_today_status` とは別 |
 | `get_project_members` | プロジェクトのメンバー |
 | `find_overtime_risks` | 残業リスク検出（今月の法定時間外の目安と月末の着地予測。既定のしきい値は 45 時間） |
@@ -60,6 +61,7 @@
 | `log_manhours` | 工数を入力する（日付と、やったことを渡せる） |
 | `end_of_month` | 月末の締め（`close_out` で残件と残業の目安を 1 回で確認。0.1.x の `monthly_review`） |
 | `team_status` | 管理者向け: チームの今日の状況と残業リスク |
+| `team_end_of_month` | 管理者向け: チームの月末締め（`team_close_out` を 1 回） |
 
 ### リソース
 
@@ -330,7 +332,7 @@ pnpm e2e         # 実環境を叩く手動 E2E（読み取りのみ。手元で
 This project is not affiliated with, endorsed by, or sponsored by Money Forward, Inc. All trademarks belong to their respective owners.
 
 - Punch in/out, check today's status, close out a day or month in one call (`close_out`), view punch history, working records, alerts, and man-hours, and record man-hours
-- Admin tools (staff list, team punches, 勤務処理 labels via `get_working_treatments`, project members) are shown only to admins. `get_working_treatments` is not today's punch status (`get_today_status`)
+- Admin tools (staff list, team punches, team close-out via `team_close_out`, 勤務処理 labels via `get_working_treatments`, project members) are shown only to admins. `get_working_treatments` is not today's punch status (`get_today_status`)
 - Runs locally over stdio: `npx kintai-plus-mcp`. Register your token first with `npx kintai-plus-mcp login`
 - The token is stored in the OS keychain (or a 600-permission file) and reissued automatically before it expires. A token passed only via `KINTAI_PLUS_TOKEN` is not stored or reissued unless `KINTAI_PLUS_PERSIST_ENV_TOKEN=true` (reissue invalidates the previous token)
 - Write confirmation has three levels. The default asks only before deleting man-hours. Punch and saving man-hours run without a dialog. Clients without elicitation get a preview until the tool is called again with `confirm: true`

@@ -18,12 +18,30 @@ export interface DayStatus {
   firstClockInAt?: Date;
   lastClockOutAt?: Date;
   lastStamp?: Stamp;
+  /**
+   * countOpen: false のとき、退勤または休憩戻が無く、開いている区間を now まで数えていない。
+   * 過去日を「勤務中」のまま日末まで数えないために使う。
+   */
+  unclosed?: 'clock_out' | 'break_end';
 }
 
 const MINUTE = 60_000;
 
+export interface DayStatusOptions {
+  /**
+   * false のとき、勤務中・休憩中の開いている区間を now まで足さない。
+   * 過去日の退勤漏れを、その日の終わりまでの勤務時間にしない。既定は true（今日の途中）。
+   */
+  countOpen?: boolean;
+}
+
 /** その日の打刻を順にたどって状態と時間を求める。ありえない並びの打刻は無視する。 */
-export function computeDayStatus(stamps: readonly Stamp[], now: Date): DayStatus {
+export function computeDayStatus(
+  stamps: readonly Stamp[],
+  now: Date,
+  options?: DayStatusOptions,
+): DayStatus {
+  const countOpen = options?.countOpen !== false;
   const sorted = [...stamps].sort((a, b) => a.stampedAt.getTime() - b.stampedAt.getTime());
   let state: DayState = 'not_started';
   let worked = 0;
@@ -71,14 +89,22 @@ export function computeDayStatus(stamps: readonly Stamp[], now: Date): DayStatus
   }
 
   const end = now.getTime();
-  if (state === 'working') worked += Math.max(0, end - since);
-  if (state === 'on_break') breaks += Math.max(0, end - since);
+  let unclosed: DayStatus['unclosed'];
+  if (state === 'working') {
+    if (countOpen) worked += Math.max(0, end - since);
+    else unclosed = 'clock_out';
+  }
+  if (state === 'on_break') {
+    if (countOpen) breaks += Math.max(0, end - since);
+    else unclosed = 'break_end';
+  }
 
   const result: DayStatus = {
     state,
     workedMinutes: Math.floor(worked / MINUTE),
     breakMinutes: Math.floor(breaks / MINUTE),
   };
+  if (unclosed) result.unclosed = unclosed;
   if (status.firstClockInAt) result.firstClockInAt = status.firstClockInAt;
   if (status.lastClockOutAt) result.lastClockOutAt = status.lastClockOutAt;
   const last = sorted.at(-1);

@@ -17,6 +17,23 @@ describe('countWeekdays', () => {
 });
 
 describe('assessOvertimeRisk', () => {
+  it('休憩不明の 9 時間経過は、法定 60 分を引いた 8 時間として時間外 0 にする', () => {
+    const records = Array.from({ length: 10 }, (_, i) => ({
+      date: `2026-10-${String(i + 1).padStart(2, '0')}`,
+      dayCategory: 'workday' as const,
+      actualWorkingMinutes: 540,
+      workingMinutesAreGross: true,
+    }));
+    const r = assessOvertimeRisk({
+      records,
+      asOf: '2026-10-10',
+      monthEnd: '2026-10-31',
+      thresholdMinutes: 45 * 60,
+    });
+    expect(r.overtimeSoFarMinutes).toBe(0);
+    expect(r.level).toBe('ok');
+  });
+
   it('ここまでのペースで月末の着地を予測する', () => {
     // 10/1〜10/16 の労働日 12 日で毎日 10 時間 → 時間外 2 時間 × 12 = 24 時間
     const records = Array.from({ length: 12 }, (_, i) =>

@@ -8,6 +8,7 @@ export type IssueType =
   | 'missing_clock_out'
   | 'missing_break_end'
   | 'missing_clock_in'
+  | 'duplicate_clock_in'
   | 'no_punches_on_workday'
   | 'long_working_day'
   | 'short_interval'
@@ -38,6 +39,7 @@ const SEVERITY: Record<IssueType, IssueSeverity> = {
   missing_clock_out: 'error',
   missing_break_end: 'error',
   missing_clock_in: 'error',
+  duplicate_clock_in: 'error',
   no_punches_on_workday: 'warning',
   long_working_day: 'warning',
   short_interval: 'warning',
@@ -56,6 +58,8 @@ const isOut = (s: Stamp) => s.type === 'clock_out' || s.type === 'direct_out';
  * stamps には範囲の前日と翌日の分も含めてよい。
  * 休暇・申請は API で見えないため、「労働日に打刻なし」は休暇の可能性を添えて warning にとどめる。
  * 勤務実績に開始・終了（または出勤・退勤の打刻時刻）がある日は、打刻修正などで打刻が欠けていても打刻漏れにしない。
+ * 退勤より前にもう一度出勤している日は duplicate_clock_in。出勤が無く休憩や退勤だけの日は missing_clock_in。
+ * 前日の終了と当日の開始が勤務実績にあれば、インターバルは打刻より実績を優先する（夜勤の終了時刻を短いインターバルにしない）。
  * 休憩が不明な経過時間は 12 時間超を info にし、1 時間引いても超えるときだけ warning にする。
  */
 export function findAttendanceIssues(input: {
@@ -101,16 +105,22 @@ export function findAttendanceIssues(input: {
     const date = addDays(start, i);
     const stamps = stampsByDate.get(date) ?? [];
     const record = recordByDate.get(date);
-    const firstInOrOut = stamps.find((s) => isIn(s) || isOut(s));
-    const startsWithOut = firstInOrOut !== undefined && isOut(firstInOrOut);
-
     const continued = continuesOpenShift(pending, date, stamps);
     if (pending && !continued) reportOpenPunch(pending);
     const carried = continued ? pending : undefined;
     pending = undefined;
 
-    if (startsWithOut && !continued && !recordHasClockIn(record))
-      add(date, 'missing_clock_in', '出勤の打刻がないまま退勤しています');
+    const shape = scanDayPunches(stamps, carried !== undefined);
+    if (shape.duplicate) {
+      add(
+        date,
+        'duplicate_clock_in',
+        '出勤の打刻が重複しています（退勤より前にもう一度出勤しています）',
+      );
+    }
+    if (shape.missingClockIn && !recordHasClockIn(record)) {
+      add(date, 'missing_clock_in', shape.missingClockInMessage);
+    }
 
     const status = computeDayStatus(stamps, endOfDay(date));
     const lastIn = [...stamps].reverse().find(isIn);
@@ -149,15 +159,27 @@ export function findAttendanceIssues(input: {
       addLongDay(date, minutes, record?.workingMinutesAreGross === true, add);
     }
 
-    const firstIn = stamps.find(isIn);
-    if (previousOut && firstIn && diffDays(previousOut.date, date) === 1) {
-      const gap = Math.round((firstIn.stampedAt.getTime() - previousOut.at.getTime()) / 60_000);
-      if (gap >= 0 && gap < MIN_INTERVAL_MINUTES) {
+    const prevRecord = recordByDate.get(addDays(date, -1));
+    const recordGap = shiftGapMinutes(prevRecord, record);
+    if (recordGap !== undefined) {
+      if (recordGap >= 0 && recordGap < MIN_INTERVAL_MINUTES) {
         add(
           date,
           'short_interval',
-          `前日の退勤から ${formatHm(gap)} で出勤しています（勤務間インターバル 11 時間未満）`,
+          `前日の退勤から ${formatHm(recordGap)} で出勤しています（勤務実績の時刻。勤務間インターバル 11 時間未満）`,
         );
+      }
+    } else {
+      const firstIn = stamps.find(isIn);
+      if (previousOut && firstIn && diffDays(previousOut.date, date) === 1) {
+        const gap = Math.round((firstIn.stampedAt.getTime() - previousOut.at.getTime()) / 60_000);
+        if (gap >= 0 && gap < MIN_INTERVAL_MINUTES) {
+          add(
+            date,
+            'short_interval',
+            `前日の退勤から ${formatHm(gap)} で出勤しています（勤務間インターバル 11 時間未満）`,
+          );
+        }
       }
     }
     const lastOut = [...stamps].reverse().find(isOut);
@@ -208,6 +230,67 @@ function continuesOpenShift(
   const first = stamps.find((s) => s.type === 'break_end' || isIn(s) || isOut(s));
   if (!first || !within(first.stampedAt)) return false;
   return first.type === 'break_end' || isOut(first);
+}
+
+/** 退勤で閉じていない勤務のあいだに、もう一度出勤しているか。出勤無しの休憩・退勤か。 */
+function scanDayPunches(
+  stamps: readonly Stamp[],
+  continued: boolean,
+): { duplicate: boolean; missingClockIn: boolean; missingClockInMessage: string } {
+  let inShift = continued;
+  let sawBreakStart = false;
+  let sawBreakEnd = false;
+  let sawOut = false;
+  let duplicate = false;
+  let missing = false;
+  for (const stamp of stamps) {
+    if (isIn(stamp)) {
+      if (inShift) duplicate = true;
+      inShift = true;
+    } else if (stamp.type === 'break_start') {
+      if (!inShift) {
+        missing = true;
+        sawBreakStart = true;
+      }
+    } else if (stamp.type === 'break_end') {
+      if (!inShift) {
+        missing = true;
+        sawBreakEnd = true;
+      }
+    } else if (isOut(stamp)) {
+      if (!inShift) {
+        missing = true;
+        sawOut = true;
+      } else {
+        inShift = false;
+      }
+    }
+  }
+  return {
+    duplicate,
+    missingClockIn: missing,
+    missingClockInMessage: missingInMessage(sawBreakStart, sawBreakEnd, sawOut),
+  };
+}
+
+function missingInMessage(sawBreakStart: boolean, sawBreakEnd: boolean, sawOut: boolean): string {
+  if ((sawBreakStart || sawBreakEnd) && sawOut) {
+    return '出勤の打刻がないまま休憩または退勤しています';
+  }
+  if (sawBreakEnd) return '出勤の打刻がないまま休憩戻しています';
+  if (sawBreakStart) return '出勤の打刻がないまま休憩入しています';
+  return '出勤の打刻がないまま退勤しています';
+}
+
+/** 前日の実績終了から当日の実績開始まで（分）。どちらかの時刻が無いときは undefined。 */
+function shiftGapMinutes(
+  prev: WorkingRecord | undefined,
+  current: WorkingRecord | undefined,
+): number | undefined {
+  const end = prev?.endTime ?? prev?.clockOutAt;
+  const start = current?.startTime ?? current?.clockInAt;
+  if (!end || !start) return undefined;
+  return Math.round((start.getTime() - end.getTime()) / 60_000);
 }
 
 function recordHasClockIn(record: WorkingRecord | undefined): boolean {

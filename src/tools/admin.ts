@@ -1,6 +1,6 @@
 import * as z from 'zod/v4';
 import type { StaffSummary } from '../api/staff.ts';
-import { computeDayStatus, DAY_STATE_LABEL, type DayState } from '../domain/day-status.ts';
+import { computeDayStatus, DAY_STATE_LABEL, type DayStatus } from '../domain/day-status.ts';
 import { type MinimalStaff, minimizeStaff } from '../privacy.ts';
 import { addDays, diffDays, endOfDay, formatIsoDateTime, todayInTokyo } from '../time/datetime.ts';
 import { dateSchema, resolveRange } from './common.ts';
@@ -8,7 +8,7 @@ import { defineTool, type ToolContext } from './registry.ts';
 import { ToolInputError } from './result.ts';
 import { formatStamp } from './stamps.ts';
 
-const staffIdsSchema = z
+export const staffIdsSchema = z
   .array(z.number().int().positive())
   .min(1)
   .max(500)
@@ -20,7 +20,7 @@ async function managedStaff(ctx: ToolContext): Promise<StaffSummary[]> {
 }
 
 /** 名前の対応表。取れなければ空（ID だけで返す） */
-async function staffIndex(ctx: ToolContext): Promise<Map<number, MinimalStaff>> {
+export async function staffIndex(ctx: ToolContext): Promise<Map<number, MinimalStaff>> {
   try {
     return new Map((await managedStaff(ctx)).map((s) => [s.staffId, minimizeStaff(s)]));
   } catch (error) {
@@ -31,7 +31,20 @@ async function staffIndex(ctx: ToolContext): Promise<Map<number, MinimalStaff>> 
   }
 }
 
-async function resolveStaffIds(input: number[] | undefined, ctx: ToolContext): Promise<number[]> {
+function presentTeamState(status: DayStatus): { state: string; stateLabel: string } {
+  if (status.unclosed === 'clock_out') {
+    return { state: 'missing_clock_out', stateLabel: '退勤打刻なし' };
+  }
+  if (status.unclosed === 'break_end') {
+    return { state: 'missing_break_end', stateLabel: '休憩戻なし' };
+  }
+  return { state: status.state, stateLabel: DAY_STATE_LABEL[status.state] };
+}
+
+export async function resolveStaffIds(
+  input: number[] | undefined,
+  ctx: ToolContext,
+): Promise<number[]> {
   if (input) {
     const unique = [...new Set(input)];
     try {
@@ -70,7 +83,7 @@ export const listStaffTool = defineTool({
   description:
     'Admin only (hidden from employees). Staff you manage (従業員): staffId, name, staff number (社員番号), organization (所属). No email. ' +
     'Paging is automatic. query matches name, staff number, or organization (case-insensitive). ' +
-    'staffId from here is what get_team_stamps, get_working_treatments, and find_overtime_risks expect. An ID outside this list is rejected before calling the API.',
+    'staffId from here is what get_team_stamps, team_close_out, get_working_records, get_working_treatments, and find_overtime_risks expect. An ID outside this list is rejected before calling the API.',
   inputSchema: z.object({
     query: z
       .string()
@@ -106,7 +119,8 @@ export const getTeamStampsTool = defineTool({
     '(not_started 未出勤 / working 勤務中 / on_break 休憩中 / finished 退勤済み) and minutes worked. ' +
     'date defaults to today (Japan time, YYYY-MM-DD). staffIds defaults to everyone you manage; unknown IDs are rejected when the staff list is complete. ' +
     'includeStamps defaults to false (status only). Requests are split into groups of 50. Location and IP are omitted. ' +
-    'Month-end overtime risk is find_overtime_risks, not this. Your own checklist is close_out.',
+    'A past day that is still open is missing_clock_out (退勤打刻なし) or missing_break_end (休憩戻なし). Minutes are not extended to the end of that day. ' +
+    'For a team day or month checklist call team_close_out once, not this tool once per day. Your own checklist is close_out.',
   inputSchema: z.object({
     date: dateSchema
       .optional()
@@ -130,9 +144,11 @@ export const getTeamStampsTool = defineTool({
       ctx.backend.getTeamStamps(date, ids),
       staffIndex(ctx),
     ]);
-    // 過去の日はその日の終わりまで、今日は今までで数える
-    const asOf = date < todayInTokyo(now) ? endOfDay(date) : now;
-    const summary: Record<DayState, number> = {
+    // 今日は今まで。過去日は開いている区間を日末まで数えない（退勤打刻なし）。
+    const today = todayInTokyo(now);
+    const past = date < today;
+    const asOf = past ? endOfDay(date) : now;
+    const summary: Record<string, number> = {
       not_started: 0,
       working: 0,
       on_break: 0,
@@ -140,14 +156,15 @@ export const getTeamStampsTool = defineTool({
     };
     const people = ids.map((staffId) => {
       const own = stamps.filter((s) => s.staffId === staffId);
-      const status = computeDayStatus(own, asOf);
-      summary[status.state]++;
+      const status = computeDayStatus(own, asOf, { countOpen: !past });
+      const presented = presentTeamState(status);
+      summary[presented.state] = (summary[presented.state] ?? 0) + 1;
       const name = names.get(staffId)?.name;
       return {
         staffId,
         ...(name ? { name } : {}),
-        state: status.state,
-        stateLabel: DAY_STATE_LABEL[status.state],
+        state: presented.state,
+        stateLabel: presented.stateLabel,
         workedMinutes: status.workedMinutes,
         ...(status.firstClockInAt
           ? { firstClockInAt: formatIsoDateTime(status.firstClockInAt) }

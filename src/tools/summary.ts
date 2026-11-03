@@ -58,9 +58,10 @@ export const summarizeWorkingHoursTool = defineTool({
       months: [...byMonth]
         .sort(([a], [b]) => (a < b ? -1 : 1))
         .map(([month, rs]) => ({ month, ...withHours(summarizeWorkingHours(rs)) })),
-      disclaimer: summary.breakTimeUnknown
-        ? `${OVERTIME_DISCLAIMER} ${UNKNOWN_BREAK_NOTE}`
-        : OVERTIME_DISCLAIMER,
+      disclaimer:
+        summary.breakTimeUnknown || summary.minutesAreEstimated
+          ? `${OVERTIME_DISCLAIMER} ${UNKNOWN_BREAK_NOTE}`
+          : OVERTIME_DISCLAIMER,
     };
   },
 });
