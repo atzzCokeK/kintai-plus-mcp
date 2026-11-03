@@ -3,7 +3,7 @@ import { STAMP_TYPE_CODES, type Stamp, type StampType } from '../../src/api/stam
 import {
   getProjectMembersTool,
   getTeamStampsTool,
-  getWorkingStatusesTool,
+  getWorkingTreatmentsTool,
   listStaffTool,
 } from '../../src/tools/admin.ts';
 import { ToolInputError } from '../../src/tools/result.ts';
@@ -208,7 +208,7 @@ describe('get_team_stamps', () => {
   });
 });
 
-describe('get_working_statuses', () => {
+describe('get_working_treatments', () => {
   it('期間 × 従業員で検索し、ラベルのあるものを名前付きで返す', async () => {
     const seen: unknown[] = [];
     const b = backend({
@@ -220,7 +220,7 @@ describe('get_working_statuses', () => {
         ];
       },
     });
-    const out = await getWorkingStatusesTool.handler(
+    const out = await getWorkingTreatmentsTool.handler(
       { from: '2026-10-26', to: '2026-10-27', staffIds: [2, 3] },
       fakeContext(b, {}, NOW),
     );
@@ -241,7 +241,7 @@ describe('get_working_statuses', () => {
   it('組み合わせが多すぎれば入力エラー', async () => {
     const many = Array.from({ length: 200 }, (_, i) => i + 1);
     await expect(
-      getWorkingStatusesTool.handler(
+      getWorkingTreatmentsTool.handler(
         { from: '2026-10-01', to: '2026-10-31', staffIds: many },
         fakeContext(backend(), {}, NOW),
       ),

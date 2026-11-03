@@ -1,5 +1,12 @@
 # kintai-plus-mcp
 
+## 名前の変更（1.0.0、未リリース）
+
+0.1.x の次の名前は、1.0.0 で変わります。旧名のエイリアスはありません。
+
+- プロンプト `monthly_review` → `end_of_month`
+- ツール `get_working_statuses` → `get_working_treatments`（勤務処理。打刻の `get_today_status` とは別）
+
 ## 0.1.3
 
 ### Patch Changes

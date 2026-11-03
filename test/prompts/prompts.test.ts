@@ -13,13 +13,13 @@ describe('selectPrompts', () => {
     expect(names(selectPrompts(ALL_PROMPTS, allToolNames))).toEqual([
       'end_of_day',
       'log_manhours',
-      'monthly_review',
+      'end_of_month',
       'team_status',
     ]);
     const employeeReadOnly = new Set(
       ALL_TOOLS.filter((t) => t.audience === 'everyone' && t.kind === 'read').map((t) => t.name),
     );
-    expect(names(selectPrompts(ALL_PROMPTS, employeeReadOnly))).toEqual(['monthly_review']);
+    expect(names(selectPrompts(ALL_PROMPTS, employeeReadOnly))).toEqual(['end_of_month']);
   });
 
   it('プロンプトが使うツールはすべて実在する', () => {
@@ -55,7 +55,7 @@ describe('MCP Prompts', () => {
     expect(text).toContain('2026-10-26');
     expect(text).toContain('save_manhours');
 
-    const review = (await client.request('prompts/get', { name: 'monthly_review', arguments: {} }))
+    const review = (await client.request('prompts/get', { name: 'end_of_month', arguments: {} }))
       .result as {
       messages: Array<{ content: { text: string } }>;
     };
@@ -80,7 +80,7 @@ describe('MCP Prompts', () => {
     const server = createMcpServer(ctx, ALL_TOOLS, {}, ALL_PROMPTS);
     const client = await connectTestClient(server);
     close = client.close;
-    const review = (await client.request('prompts/get', { name: 'monthly_review', arguments: {} }))
+    const review = (await client.request('prompts/get', { name: 'end_of_month', arguments: {} }))
       .result as { messages: Array<{ content: { text: string } }> };
     const text = review.messages[0]?.content.text ?? '';
     expect(text).toContain('close_out');

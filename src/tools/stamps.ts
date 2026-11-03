@@ -65,7 +65,8 @@ export const getTodayStatusTool = defineTool({
     'Live status for today only (Japan time, Asia/Tokyo): not_started 未出勤 / working 勤務中 / on_break 休憩中 / finished 退勤済み, ' +
     'minutes worked so far (breaks excluded), break minutes, and today\'s punches. No arguments; "today" is never a date you pass. ' +
     'Call this immediately before punch to see which type is legal. ' +
-    'For the end-of-day checklist (short breaks, man-hours, overtime, alerts), use close_out scope=day instead of chaining tools.',
+    'For the end-of-day checklist (short breaks, man-hours, overtime, alerts), use close_out scope=day instead of chaining tools. ' +
+    'Not 勤務処理 labels such as 欠勤 or 出張 — that admin tool is get_working_treatments.',
   inputSchema: z.object({}),
   capability: 'stamps.read',
   audience: 'everyone',

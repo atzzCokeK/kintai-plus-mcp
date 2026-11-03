@@ -1,7 +1,7 @@
 import {
   getProjectMembersTool,
   getTeamStampsTool,
-  getWorkingStatusesTool,
+  getWorkingTreatmentsTool,
   listStaffTool,
 } from './admin.ts';
 import { getAlertsTool } from './alerts.ts';
@@ -37,7 +37,7 @@ export const ALL_TOOLS: readonly ToolDefinition[] = [
   // 管理者向け
   listStaffTool,
   getTeamStampsTool,
-  getWorkingStatusesTool,
+  getWorkingTreatmentsTool,
   getProjectMembersTool,
   findOvertimeRisksTool,
 ];

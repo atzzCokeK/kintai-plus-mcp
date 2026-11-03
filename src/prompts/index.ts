@@ -70,9 +70,10 @@ export const ALL_PROMPTS: readonly PromptDefinition[] = [
     },
   }),
   definePrompt({
-    name: 'monthly_review',
-    title: '月の振り返り',
-    description: '指定した月（既定は今月）を close_out で確認し、残件と残業の目安をまとめる',
+    name: 'end_of_month',
+    title: '月末の締め',
+    description:
+      '指定した月（既定は今月）を close_out で確認し、残件と残業の目安をまとめる。end_of_day の月版',
     argsSchema: z.object({
       month: z
         .string()

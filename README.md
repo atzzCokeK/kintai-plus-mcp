@@ -15,6 +15,13 @@
 
 1.0 からは、ツール名・引数・プロンプト名を互換性の約束とします。これらを壊す変更は、メジャーバージョンを上げるときだけ行います。まだ未確認の API の点は [docs/api-notes.md](./docs/api-notes.md) の「未確認事項」にあります。
 
+0.1.x から 1.0 で、次の名前だけ変えます。旧名では呼べません。
+
+| 0.1.x | 1.0 |
+|---|---|
+| プロンプト `monthly_review` | `end_of_month`（`end_of_day` の月末版。`close_out` を案内する） |
+| ツール `get_working_statuses` | `get_working_treatments`（勤務処理のラベル。打刻の `get_today_status` とは別） |
+
 ## できること
 
 | ツール | 内容 |
@@ -38,7 +45,7 @@
 |---|---|
 | `list_staff` | 管理下の従業員の一覧（ID・氏名・社員番号・所属のみ） |
 | `get_team_stamps` | 管理下の従業員の 1 日分の打刻と状況 |
-| `get_working_statuses` | 勤務処理（欠勤・出張など） |
+| `get_working_treatments` | 勤務処理のラベル（欠勤・出張など）。打刻の `get_today_status` とは別 |
 | `get_project_members` | プロジェクトのメンバー |
 | `find_overtime_risks` | 残業リスク検出（今月の法定時間外の目安と月末の着地予測。既定のしきい値は 45 時間） |
 
@@ -50,7 +57,7 @@
 |---|---|
 | `end_of_day` | 退勤前チェック（`close_out` で今日の残件を見て、工数を埋めてから退勤を打刻） |
 | `log_manhours` | 工数を入力する（日付と、やったことを渡せる） |
-| `monthly_review` | 月の締め（`close_out` で残件と残業の目安を 1 回で確認） |
+| `end_of_month` | 月末の締め（`close_out` で残件と残業の目安を 1 回で確認。0.1.x の `monthly_review`） |
 | `team_status` | 管理者向け: チームの今日の状況と残業リスク |
 
 ## 必要なもの
@@ -275,7 +282,7 @@ pnpm e2e         # 実環境を叩く手動 E2E（読み取りのみ。手元で
 This project is not affiliated with, endorsed by, or sponsored by Money Forward, Inc. All trademarks belong to their respective owners.
 
 - Punch in/out, check today's status, close out a day or month in one call (`close_out`), view punch history, working records, alerts, and man-hours, and record man-hours
-- Admin tools (staff list, team punches, working statuses, project members) are shown only to admins
+- Admin tools (staff list, team punches, 勤務処理 labels via `get_working_treatments`, project members) are shown only to admins. `get_working_treatments` is not today's punch status (`get_today_status`)
 - Runs locally over stdio: `npx kintai-plus-mcp`. Register your token first with `npx kintai-plus-mcp login`
 - The token is stored in the OS keychain (or a 600-permission file) and reissued automatically before it expires. A token passed only via `KINTAI_PLUS_TOKEN` is not stored or reissued unless `KINTAI_PLUS_PERSIST_ENV_TOKEN=true` (reissue invalidates the previous token)
 - Location and IP address of punches are not sent to the AI by default
