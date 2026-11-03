@@ -37,7 +37,7 @@
 
 - 起動時に権限（企業管理者／一般管理者／従業員）を確認し、一般の従業員には管理者向けツールを見せない。
 - 全員向け: `get_my_profile`, `get_today_status`（未出勤／勤務中／休憩中／退勤済みと、ここまでの勤務時間）, `close_out`（1 日または月の残件を 1 回で。打刻漏れ・法定休憩・工数・残業の目安・アラート）, `punch`【書】, `get_stamps`, `get_working_records`, `get_alerts`, `list_projects`, `list_tasks`, `get_my_projects`, `get_manhours`, `save_manhours`【書】, `delete_manhours`【書】, `summarize_working_hours`
-- 管理者向け: `list_staff`, `get_team_stamps`, `get_working_statuses`, `get_project_members`
+- 管理者向け: `list_staff`, `get_team_stamps`, `get_working_treatments`（勤務処理。打刻の `get_today_status` とは別）, `get_project_members`
 - 非対応（v1）: 人事マスタの書き込み（従業員の登録・削除、権限、異動、個別就業設定、勤務処理の更新、組織作成、プロジェクト/タスクの作成・削除、プロジェクト従業員の追加・解除）、申請、スケジュール。
 - ツール名は英語の snake_case。説明文も英語で、勤怠用語は日本語を併記。
 

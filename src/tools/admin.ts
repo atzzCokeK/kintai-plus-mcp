@@ -70,7 +70,7 @@ export const listStaffTool = defineTool({
   description:
     'Admin only (hidden from employees). Staff you manage (従業員): staffId, name, staff number (社員番号), organization (所属). No email. ' +
     'Paging is automatic. query matches name, staff number, or organization (case-insensitive). ' +
-    'staffId from here is what get_team_stamps, get_working_statuses, and find_overtime_risks expect. An ID outside this list is rejected before calling the API.',
+    'staffId from here is what get_team_stamps, get_working_treatments, and find_overtime_risks expect. An ID outside this list is rejected before calling the API.',
   inputSchema: z.object({
     query: z
       .string()
@@ -174,13 +174,15 @@ export const getTeamStampsTool = defineTool({
 const MAX_STATUS_DAYS = 31;
 const MAX_STATUS_COMBINATIONS = 5000;
 
-export const getWorkingStatusesTool = defineTool({
-  name: 'get_working_statuses',
-  title: 'Get working statuses (勤務処理)',
+export const getWorkingTreatmentsTool = defineTool({
+  name: 'get_working_treatments',
+  title: 'Get 勤務処理 labels',
   description:
-    'Admin only. Working-status labels (勤務処理) such as absence (欠勤) or a business trip (出張). The words are configured per company, so show the label text, do not translate it into a punch. ' +
+    'Admin only. Company-configured 勤務処理 labels (public API: POST /working_statuses/search), such as absence (欠勤) or a business trip (出張). ' +
+    "Not get_today_status: that tool is the signed-in person's live punch state for today only (未出勤 / 勤務中 / 休憩中 / 退勤済み). " +
+    'These are labels the company defined, not a clock-in state. Show the label text as returned. Do not turn a label into a punch. ' +
     `Defaults to today only (Japan time, YYYY-MM-DD), all staff you manage, max ${MAX_STATUS_DAYS} days. ` +
-    'Only days that have a label are returned. This is not punch history — use get_team_stamps for who is in.',
+    'Only days that have a label are returned. To see who has clocked in, use get_team_stamps.',
   inputSchema: z.object({
     from: dateSchema
       .optional()

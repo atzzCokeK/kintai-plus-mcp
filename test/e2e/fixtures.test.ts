@@ -75,7 +75,7 @@ describe('フィクスチャでの通しの動作', () => {
     expect(res.prompts.map((p) => p.name)).toEqual([
       'end_of_day',
       'log_manhours',
-      'monthly_review',
+      'end_of_month',
       'team_status',
     ]);
   });
@@ -167,8 +167,8 @@ describe('フィクスチャでの通しの動作', () => {
     expect(res.text).not.toContain('192.0.2');
   });
 
-  it('管理者向け: get_working_statuses と get_project_members', async () => {
-    expect((await call('get_working_statuses')).text).toContain('出張');
+  it('管理者向け: get_working_treatments と get_project_members', async () => {
+    expect((await call('get_working_treatments')).text).toContain('出張');
     expect((await call('get_project_members', { projectId: 501 })).json).toMatchObject({
       count: 2,
     });
