@@ -1,5 +1,5 @@
 import * as z from 'zod/v4';
-import { addDays, todayInTokyo } from '../time/datetime.ts';
+import { addDays, startOfMonth, todayInTokyo } from '../time/datetime.ts';
 
 /**
  * 定型プロンプト（MCP Prompts）。クライアントのメニューから呼び出す、よくある頼み方のひな形。
@@ -84,12 +84,20 @@ export const ALL_PROMPTS: readonly PromptDefinition[] = [
       const month = args.month ?? today.slice(0, 7);
       const from = `${month}-01`;
       const isCurrent = month === today.slice(0, 7);
+      const yesterday = addDays(today, -1);
       const to = isCurrent ? today : undefined;
       const range = to ? `from=${from}, to=${to}` : `from=${from}（その月の末日まで）`;
+      // 1 日は yesterday が前月なので、from を今月 1 日のままにすると期間が逆順になる
+      const issues =
+        isCurrent && yesterday < from
+          ? `from=${startOfMonth(yesterday)}, to=${yesterday}（今月は 1 日なので、前月を確認する）`
+          : isCurrent
+            ? `from=${from}, to=${yesterday}`
+            : range;
       return [
         `${month} の勤務を振り返ってください。`,
         `1. summarize_working_hours（${range}）で実働合計・出勤日数・休日出勤・法定時間外の目安を出す。`,
-        `2. check_attendance_issues（${isCurrent ? `from=${from}, to=${addDays(today, -1)}` : range}）で打刻漏れなどを確認する。`,
+        `2. check_attendance_issues（${issues}）で打刻漏れなどを確認する。`,
         `3. get_alerts（month=${month}）でアラートを確認する。`,
         '4. 結果を短くまとめ、直したほうがよい点（打刻修正の申請が必要な日など）を挙げる。残業は「目安」であることを必ず添える。',
       ].join('\n');

@@ -147,6 +147,33 @@ describe('save_manhours', () => {
     ).rejects.toThrow(/24 hours/);
   });
 
+  it('タスク一覧が取れなくても保存し、確認できなかったことを警告する', async () => {
+    const { ctx, saved } = setup();
+    ctx.backend.listTasks = async () => {
+      throw new Error('tasks down');
+    };
+    const out = await saveManhoursTool.handler(
+      { date: '2026-10-27', entries: [{ projectId: 3, taskId: 10, minutes: 30 }] },
+      ctx,
+    );
+    expect(saved).toHaveLength(1);
+    expect(out).toMatchObject({ warnings: ['Could not verify tasks of project 3.'] });
+  });
+
+  it('保存したあとにプロジェクト名が取れなくても、保存結果は返す', async () => {
+    const { ctx, saved } = setup();
+    ctx.backend.listProjects = async () => {
+      throw new Error('projects down');
+    };
+    const out = (await saveManhoursTool.handler(
+      { date: '2026-10-27', entries: [{ projectId: 3, taskId: 10, minutes: 30 }] },
+      ctx,
+    )) as { saved: Array<{ projectName?: string; taskName?: string }> };
+    expect(saved).toHaveLength(1);
+    expect(out.saved[0]?.taskName).toBe('設計');
+    expect(out.saved[0]?.projectName).toBeUndefined();
+  });
+
   it('不正な日付は入力エラー', async () => {
     const { ctx } = setup();
     await expect(

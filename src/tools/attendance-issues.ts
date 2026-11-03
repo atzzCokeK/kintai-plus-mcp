@@ -30,10 +30,10 @@ export const checkAttendanceIssuesTool = defineTool({
       to: () => yesterday,
       maxDays: MAX_DAYS,
     });
-    // 打刻は範囲の前日から取り、初日の朝に終わる夜勤を打刻忘れにしない
+    // 打刻は範囲の前後 1 日も取り、端の夜勤（翌朝の退勤・休憩戻）を打刻忘れにしない
     const [records, { stamps }] = await Promise.all([
       ctx.backend.getWorkingRecords(range),
-      ctx.backend.getStamps({ from: addDays(range.from, -1), to: range.to }),
+      ctx.backend.getStamps({ from: addDays(range.from, -1), to: addDays(range.to, 1) }),
     ]);
     const issues = findAttendanceIssues({ range, records, stamps });
     const counts: Record<IssueSeverity, number> = { error: 0, warning: 0, info: 0 };

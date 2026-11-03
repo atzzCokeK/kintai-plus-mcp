@@ -99,6 +99,32 @@ describe('promptArrowSelect', () => {
     expect(upInput.raw).toBe(false);
   });
 
+  it('Ctrl+D と入力の終端はキャンセルする', async () => {
+    const ctrlD = new FakeStdin();
+    const ctrlDPending = promptArrowSelect({
+      message: HOST_SELECT_MESSAGE,
+      choices,
+      defaultValue: 'atnd.ak4.jp',
+      input: ctrlD,
+      output: capture().output,
+    });
+    ctrlD.write('\u0004');
+    await expect(ctrlDPending).resolves.toEqual({ status: 'cancelled' });
+    expect(ctrlD.raw).toBe(false);
+
+    const ended = new FakeStdin();
+    const endedPending = promptArrowSelect({
+      message: HOST_SELECT_MESSAGE,
+      choices,
+      defaultValue: 'atnd.ak4.jp',
+      input: ended,
+      output: capture().output,
+    });
+    ended.end();
+    await expect(endedPending).resolves.toEqual({ status: 'cancelled' });
+    expect(ended.listenerCount('keypress')).toBe(0);
+  });
+
   it('Ctrl+C はキャンセルし、そのあと別の選択ができる', async () => {
     const input = new FakeStdin();
     const screen = capture();
