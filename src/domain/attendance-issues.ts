@@ -32,7 +32,7 @@ const UNKNOWN_BREAK_ALLOWANCE_MINUTES = 60;
 /** 勤務間インターバルの目安（分） */
 const MIN_INTERVAL_MINUTES = 11 * 60;
 /** 日をまたぐ勤務とみなす、出勤から翌日の退勤までの最長（分） */
-const MAX_OVERNIGHT_SHIFT_MINUTES = 16 * 60;
+export const MAX_OVERNIGHT_SHIFT_MINUTES = 16 * 60;
 
 const SEVERITY: Record<IssueType, IssueSeverity> = {
   missing_clock_out: 'error',

@@ -13,7 +13,7 @@
 
 公開 API の仕様（公式）: [マネーフォワード クラウド勤怠Plus 公開API 仕様](https://akashi.zendesk.com/hc/ja/articles/115000475854)
 
-> v0.1 は開発中です。主要な応答の形は実環境で確認済みです。まだ未確認の点は [docs/api-notes.md](./docs/api-notes.md) の「未確認事項」にあります。
+1.0 からは、ツール名・引数・プロンプト名を互換性の約束とします。これらを壊す変更は、メジャーバージョンを上げるときだけ行います。まだ未確認の API の点は [docs/api-notes.md](./docs/api-notes.md) の「未確認事項」にあります。
 
 ## できること
 
@@ -21,6 +21,7 @@
 |---|---|
 | `get_my_profile` | 自分の従業員情報と権限 |
 | `get_today_status` | 今日の状況（未出勤／勤務中／休憩中／退勤済み）と、ここまでの勤務時間 |
+| `close_out` | 1 日または月の締め。打刻漏れ・法定の休憩不足・工数の過不足・残業の目安・アラートを、優先度つきの残件として 1 回で返す |
 | `punch` 【書き込み】 | 打刻（出勤・退勤・直行・直帰・休憩入・休憩戻、テレワーク） |
 | `get_stamps` | 打刻履歴（長い期間は自動で分割） |
 | `get_working_records` | 勤務実績（労働区分・時刻・実働・休憩。31 日ごとに自動で分割） |
@@ -47,9 +48,9 @@
 
 | プロンプト | 内容 |
 |---|---|
-| `end_of_day` | 退勤前チェック（今日の勤務と工数を確認し、入力漏れを埋めてから退勤を打刻） |
+| `end_of_day` | 退勤前チェック（`close_out` で今日の残件を見て、工数を埋めてから退勤を打刻） |
 | `log_manhours` | 工数を入力する（日付と、やったことを渡せる） |
-| `monthly_review` | 月の振り返り（勤務時間・残業の目安・打刻漏れ・アラート） |
+| `monthly_review` | 月の締め（`close_out` で残件と残業の目安を 1 回で確認） |
 | `team_status` | 管理者向け: チームの今日の状況と残業リスク |
 
 ## 必要なもの
@@ -194,6 +195,45 @@ KINTAI_PLUS_TOKEN=... KINTAI_PLUS_COMPANY_ID=... KINTAI_PLUS_HOST=atnd.ak4.jp np
 
 環境変数のトークンを保存して再発行する動作は、`KINTAI_PLUS_PERSIST_ENV_TOKEN=true` を付けたときだけです。有効にすると、環境変数に書いたトークンは使えなくなることがあります。保存先にすでに認証情報があるときは、環境変数より保存先を優先します。
 
+## 1 日・月末の締め（`close_out`）
+
+「退勤前に見て」「今月締められる？」は `close_out` が 1 回で答えます。個別の確認ツールを順に呼ぶ必要はありません。`scope` は `day`（既定・今日）か `month`（既定・今月）です。日付は日本時間です。
+
+残件が無い日は、こう返します（抜粋。実際には `overtime` や `disclaimer` も付きます）。
+
+```json
+{
+  "scope": "day",
+  "ok": true,
+  "readyToClose": true,
+  "headline": "2026-10-27 は締められます。対応は不要です。",
+  "counts": { "error": 0, "warning": 0, "info": 0 },
+  "items": []
+}
+```
+
+昼休みを打刻し忘れて休憩が 3 分しかない日（実働 8 時間 57 分）は、最初の項目が次のようになります。過去の打刻は API で直せないので、案内は Web の修正申請です。
+
+```json
+{
+  "ok": false,
+  "headline": "先に 1 件対応してください。items を priority 順に処理してください。",
+  "items": [
+    {
+      "priority": 1,
+      "severity": "error",
+      "code": "short_break",
+      "date": "2026-10-26",
+      "title": "休憩が 3 分しかありません",
+      "detail": "打刻上の休憩は 3 分、実働は 8:57。労働基準法: 労働時間が 6 時間を超えたら休憩 45 分以上、8 時間を超えたら 60 分以上（ちょうど 6 時間・8 時間は含まない）。必要 60 分、あと 57 分足りません。",
+      "action": "この日はすでに終わっているので、今 punch しても休憩は増えません。この打刻は API では修正できません。勤怠Plus の Web 画面から修正申請（打刻修正）をしてください。punch は呼ばないでください（今の時刻で新しい打刻が増えるだけです）。"
+    }
+  ]
+}
+```
+
+今日がまだ休憩中なら、`code` は `open_break` で、次の操作は `punch`（`type=break_end`）です。修正申請ではありません。
+
 ## 制約
 
 - **申請（残業・休暇・打刻修正など）とスケジュールには対応していません**（公開 API にないため）
@@ -234,7 +274,7 @@ pnpm e2e         # 実環境を叩く手動 E2E（読み取りのみ。手元で
 **Unofficial** MCP server for the public API of "Money Forward Cloud Kintai Plus" (formerly AKASHI), a Japanese attendance management service.
 This project is not affiliated with, endorsed by, or sponsored by Money Forward, Inc. All trademarks belong to their respective owners.
 
-- Punch in/out, check today's status, view punch history, working records, alerts, and man-hours, and record man-hours
+- Punch in/out, check today's status, close out a day or month in one call (`close_out`), view punch history, working records, alerts, and man-hours, and record man-hours
 - Admin tools (staff list, team punches, working statuses, project members) are shown only to admins
 - Runs locally over stdio: `npx kintai-plus-mcp`. Register your token first with `npx kintai-plus-mcp login`
 - The token is stored in the OS keychain (or a 600-permission file) and reissued automatically before it expires. A token passed only via `KINTAI_PLUS_TOKEN` is not stored or reissued unless `KINTAI_PLUS_PERSIST_ENV_TOKEN=true` (reissue invalidates the previous token)

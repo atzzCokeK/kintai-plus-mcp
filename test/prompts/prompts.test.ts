@@ -59,14 +59,22 @@ describe('MCP Prompts', () => {
       .result as {
       messages: Array<{ content: { text: string } }>;
     };
-    expect(review.messages[0]?.content.text).toContain('2026-10');
+    const reviewText = review.messages[0]?.content.text ?? '';
+    expect(reviewText).toContain('2026-10');
+    expect(reviewText).toContain('close_out');
+
+    const end = (await client.request('prompts/get', { name: 'end_of_day', arguments: {} }))
+      .result as { messages: Array<{ content: { text: string } }> };
+    const endText = end.messages[0]?.content.text ?? '';
+    expect(endText).toContain('close_out');
+    expect(endText).toContain('2026-10-27');
 
     const team = (await client.request('prompts/get', { name: 'team_status', arguments: {} }))
       .result as { messages: Array<{ content: { text: string } }> };
     expect(team.messages[0]?.content.text).toContain('get_team_stamps');
   });
 
-  it('日本時間で 1 日の 0 時台なら、打刻漏れは前月を見る（from が to より後にならない）', async () => {
+  it('日本時間で 1 日の 0 時台なら、締めは前月を見る（from が to より後にならない）', async () => {
     // 2026-03-01 00:30 JST。UTC ではまだ 2 月 28 日。
     const ctx = fakeContext(undefined, {}, new Date('2026-02-28T15:30:00Z'));
     const server = createMcpServer(ctx, ALL_TOOLS, {}, ALL_PROMPTS);
@@ -75,6 +83,8 @@ describe('MCP Prompts', () => {
     const review = (await client.request('prompts/get', { name: 'monthly_review', arguments: {} }))
       .result as { messages: Array<{ content: { text: string } }> };
     const text = review.messages[0]?.content.text ?? '';
+    expect(text).toContain('close_out');
+    expect(text).toContain('month=2026-02');
     expect(text).toContain('from=2026-02-01, to=2026-02-28');
     expect(text).not.toContain('from=2026-03-01, to=2026-02-28');
 

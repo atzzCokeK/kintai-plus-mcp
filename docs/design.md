@@ -36,7 +36,7 @@
 ## ツール
 
 - 起動時に権限（企業管理者／一般管理者／従業員）を確認し、一般の従業員には管理者向けツールを見せない。
-- 全員向け: `get_my_profile`, `get_today_status`（未出勤／勤務中／休憩中／退勤済みと、ここまでの勤務時間）, `punch`【書】, `get_stamps`, `get_working_records`, `get_alerts`, `list_projects`, `list_tasks`, `get_my_projects`, `get_manhours`, `save_manhours`【書】, `delete_manhours`【書】, `summarize_working_hours`
+- 全員向け: `get_my_profile`, `get_today_status`（未出勤／勤務中／休憩中／退勤済みと、ここまでの勤務時間）, `close_out`（1 日または月の残件を 1 回で。打刻漏れ・法定休憩・工数・残業の目安・アラート）, `punch`【書】, `get_stamps`, `get_working_records`, `get_alerts`, `list_projects`, `list_tasks`, `get_my_projects`, `get_manhours`, `save_manhours`【書】, `delete_manhours`【書】, `summarize_working_hours`
 - 管理者向け: `list_staff`, `get_team_stamps`, `get_working_statuses`, `get_project_members`
 - 非対応（v1）: 人事マスタの書き込み（従業員の登録・削除、権限、異動、個別就業設定、勤務処理の更新、組織作成、プロジェクト/タスクの作成・削除、プロジェクト従業員の追加・解除）、申請、スケジュール。
 - ツール名は英語の snake_case。説明文も英語で、勤怠用語は日本語を併記。
@@ -55,6 +55,7 @@
 - 残業は「法定時間外の目安」（労働日は 1 日 8 時間超、法定休日は全時間）として集計し、目安であることを必ず添える。所定休日は法律上は労働日と同じなので 1 日 8 時間超で数える（2026-10-27 実装時に明確化）。
 - 勤務実績 API は実働時間と休憩を返さない（2026-10-29 に実環境で確認）。実働の目安は開始〜終了の経過（休憩を含む）とし、休憩は不明と示す（ADR 0008）。
 - 打刻漏れチェックは、勤務実績に開始・終了（または出勤・退勤の打刻時刻）がある日を打刻漏れにしない。休憩が不明な経過時間が 12 時間を超えるときは情報にし、1 時間の休憩を差し引いても超えるときだけ警告にする。
+- 1 日・月末の締めは `close_out` にまとめる（ADR 0009）。休憩の過不足は打刻から数え、労働基準法どおり実働 6 時間超で 45 分、8 時間超で 60 分（ちょうど 6 時間・8 時間は含まない）。今日は進行中として扱い、過去の打刻修正は Web の修正申請にする。
 - ツールの引数に未知の項目があれば拒否する。月の指定は 01 から 12。管理下の一覧に無い従業員 ID は、一覧を取り切れているときは API を呼ばずに案内する。
 - 打刻の緯度・経度と IP アドレスは既定で AI に渡さない。従業員情報も必要最小限に絞る。
 - タイムゾーンは日本時間（Asia/Tokyo）固定。ログは stderr のみ。
@@ -63,5 +64,5 @@
 
 - 実装は TDD。
 - 公開 CI はモックと匿名化済みフィクスチャのみ。実環境の E2E は手元でのみ実行。
-- semver。1.0 以降はツール名と引数を互換性の対象にする。
+- semver。1.0 以降はツール名・引数・プロンプト名を互換性の対象にする。壊す変更はメジャーバージョンで行う。
 - Changesets で変更履歴を管理し、GitHub Actions から Trusted Publishing + provenance で npm に公開する。

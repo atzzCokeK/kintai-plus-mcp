@@ -23,6 +23,11 @@ export interface ToolDefinition<S extends z.ZodObject = z.ZodObject> {
   /** 英語。勤怠用語は日本語を併記する */
   description: string;
   inputSchema: S;
+  /**
+   * 成功時の structuredContent の形。指定したツールは successResult が structuredContent を載せる。
+   * SDK がこのスキーマで検証するので、返り値と揃える。
+   */
+  outputSchema?: z.ZodType;
   /** このツールに必要なバックエンドの機能 */
   capability: Capability;
   audience: 'everyone' | 'admin';

@@ -13,9 +13,12 @@ import { PACKAGE_NAME, VERSION } from '../version.ts';
 
 export const SERVER_INSTRUCTIONS = [
   'Unofficial MCP server for マネーフォワード クラウド勤怠Plus (formerly AKASHI).',
-  'All dates and times are Japan time (Asia/Tokyo). Dates are YYYY-MM-DD.',
-  'Punches (打刻) are recorded at the time the server receives them and cannot be edited or backdated via the API; corrections require a request (申請) in the web UI.',
-  'Requests (申請) and schedules (スケジュール) are not supported.',
+  'All dates and times are Japan time (Asia/Tokyo, no daylight saving). Date arguments are YYYY-MM-DD. Month arguments are YYYY-MM with the month in 01-12.',
+  'For "what should I do before clocking out" or month-end (1日の締め / 月末の締め), call close_out once. Do not chain get_today_status, check_attendance_issues, get_manhours, summarize_working_hours, and get_alerts for that checklist.',
+  'punch is recorded at the time the server receives it and cannot be edited, deleted, or backdated. Past corrections need 修正申請 in the web UI, not punch.',
+  'save_manhours overwrites only the tasks you list. delete_manhours removes them; omitting taskId deletes every task of that project for the day. Confirm with the user before any write.',
+  'If punch, save_manhours, or delete_manhours is not listed, the server is read-only (KINTAI_PLUS_READ_ONLY=true). Tell the user; do not retry the write.',
+  'Requests (申請) and schedules (スケジュール) are not supported. Overtime figures are estimates.',
 ].join('\n');
 
 export interface ServerHooks {
@@ -66,6 +69,7 @@ export function createMcpServer(
         title: tool.title,
         description: tool.description,
         inputSchema: tool.inputSchema,
+        ...(tool.outputSchema ? { outputSchema: tool.outputSchema } : {}),
         annotations: annotationsFor(tool),
       },
       async (input: unknown, serverCtx: ServerContext) => {

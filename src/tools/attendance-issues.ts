@@ -10,12 +10,11 @@ export const checkAttendanceIssuesTool = defineTool({
   name: 'check_attendance_issues',
   title: 'Check my attendance for issues',
   description:
-    'Check your own punches and working records for issues (打刻漏れチェック): missing clock out/in (退勤・出勤の打刻忘れ), ' +
-    'break not ended (休憩戻なし), no punches on a workday, days over 12 hours, rest interval under 11 hours (勤務間インターバル), and holiday work. ' +
-    'A missing punch is not reported when the working record already has that start or end time (for example after a correction in the web UI). ' +
-    'When break time is unknown, elapsed time over 12 hours is info unless it still exceeds 12 hours after a 1-hour break. ' +
-    `Defaults to the 1st of this month through yesterday (on the 1st, the previous month). Max ${MAX_DAYS} days. ` +
-    'Overnight shifts are recognized. Leave and requests are not visible via the API, so "no punches" may simply be a day off.',
+    'Raw punch issues for yourself (打刻漏れチェック): missing clock-out/in, break left open, no punches on a workday, days over 12 hours, rest under 11 hours (勤務間インターバル), holiday work. ' +
+    'Does NOT check Labor Standards Act break length (6h/45min, 8h/60min), man-hours, or the monthly overtime trajectory — close_out does, in one call. ' +
+    'A missing punch is suppressed when the working record already has that time. ' +
+    `Defaults: the 1st of this month through yesterday (on the 1st, the previous month), Japan time, YYYY-MM-DD, max ${MAX_DAYS} days. Today is excluded because the day may still be open. ` +
+    'Overnight shifts are recognized. Leave is invisible, so "no punches" may be a day off. Fixing punches is 修正申請 in the web UI, not punch.',
   inputSchema: z.object({
     from: dateSchema.optional().describe('Start date (YYYY-MM-DD).'),
     to: dateSchema.optional().describe('End date, inclusive (YYYY-MM-DD). Defaults to yesterday.'),

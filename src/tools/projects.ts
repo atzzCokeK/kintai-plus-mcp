@@ -19,8 +19,9 @@ export const listProjectsTool = defineTool({
   name: 'list_projects',
   title: 'List projects',
   description:
-    "List the company's projects (プロジェクト) used for man-hour tracking (工数). Optionally filter by name/code and by the date the project is active on. " +
-    'Use the projectId with list_tasks and save_manhours.',
+    'Search the company project list (プロジェクト) used for man-hours (工数). ' +
+    'Prefer get_my_projects when logging your own time; use this to search by name or code, or to see projects you might not belong to. ' +
+    'activeOn is YYYY-MM-DD (Japan time) and keeps projects whose period includes that date. projectId goes to list_tasks and save_manhours.',
   inputSchema: z.object({
     query: z
       .string()
@@ -53,8 +54,8 @@ export const listTasksTool = defineTool({
   name: 'list_tasks',
   title: 'List tasks of a project',
   description:
-    'List the tasks (タスク) of a project for man-hour tracking. Finished tasks (終了) are excluded unless includeFinished is true. ' +
-    'Estimated time (見積もり) is in minutes.',
+    'Tasks (タスク) of one projectId from get_my_projects or list_projects. Call this before save_manhours so taskId is real. ' +
+    'Finished tasks (終了) are hidden unless includeFinished is true. estimatedMinutes is minutes (estimatedHours is the same value as H:MM).',
   inputSchema: z.object({
     projectId: idSchema.describe('Project ID from list_projects or get_my_projects.'),
     includeFinished: z.boolean().optional().describe('Include finished tasks. Default false.'),
@@ -83,7 +84,8 @@ export const getMyProjectsTool = defineTool({
   name: 'get_my_projects',
   title: 'Get my projects',
   description:
-    'List the projects you are a member of (参加プロジェクト), with names. Use these projectIds for man-hours.',
+    'Projects you belong to (参加プロジェクト), with names. Prefer this over list_projects when entering your own man-hours. ' +
+    'If a name is missing, the project list could not be loaded; the projectId is still valid for list_tasks and save_manhours.',
   inputSchema: z.object({}),
   capability: 'projects.read',
   audience: 'everyone',
@@ -151,8 +153,10 @@ export const getManhoursTool = defineTool({
   name: 'get_manhours',
   title: 'Get my man-hours',
   description:
-    'Get your own man-hour records (工数) per day, project, and task, in minutes, with project/task names. ' +
-    `Defaults to this month. closed (締め) / fixed (確定) days cannot be changed. Max ${MAX_MANHOUR_DAYS} days.`,
+    'Your man-hours (工数) per day, project, and task, in minutes, with names when the directory can be loaded. ' +
+    `Defaults: from=the 1st of this month, to=the end of that month (Japan time, YYYY-MM-DD), max ${MAX_MANHOUR_DAYS} days. ` +
+    'closed (締め) or fixed (確定) days cannot be changed with save_manhours or delete_manhours. ' +
+    'close_out says which days are missing or off; call this to see the entries before changing them.',
   inputSchema: z.object({
     from: dateSchema
       .optional()

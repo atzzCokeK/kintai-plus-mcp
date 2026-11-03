@@ -68,8 +68,9 @@ export const listStaffTool = defineTool({
   name: 'list_staff',
   title: 'List staff I manage',
   description:
-    'Admin only. List the staff (従業員) you manage, with staff ID, name, staff number (社員番号), and organization (所属). ' +
-    'Paging is handled automatically. Optionally filter by text. Email and other personal details are not returned.',
+    'Admin only (hidden from employees). Staff you manage (従業員): staffId, name, staff number (社員番号), organization (所属). No email. ' +
+    'Paging is automatic. query matches name, staff number, or organization (case-insensitive). ' +
+    'staffId from here is what get_team_stamps, get_working_statuses, and find_overtime_risks expect. An ID outside this list is rejected before calling the API.',
   inputSchema: z.object({
     query: z
       .string()
@@ -101,11 +102,17 @@ export const getTeamStampsTool = defineTool({
   name: 'get_team_stamps',
   title: "Get my team's punches for a day",
   description:
-    "Admin only. Get the punches (打刻) of staff you manage for one day, with each person's status " +
-    '(not_started 未出勤 / working 勤務中 / on_break 休憩中 / finished 退勤済み) and time worked. ' +
-    'Defaults to today and all staff you manage. Requests are split into groups of 50 automatically. Location and IP are omitted.',
+    "Admin only. One day of punches for staff you manage, with each person's status " +
+    '(not_started 未出勤 / working 勤務中 / on_break 休憩中 / finished 退勤済み) and minutes worked. ' +
+    'date defaults to today (Japan time, YYYY-MM-DD). staffIds defaults to everyone you manage; unknown IDs are rejected when the staff list is complete. ' +
+    'includeStamps defaults to false (status only). Requests are split into groups of 50. Location and IP are omitted. ' +
+    'Month-end overtime risk is find_overtime_risks, not this. Your own checklist is close_out.',
   inputSchema: z.object({
-    date: dateSchema.optional().describe('Date (YYYY-MM-DD). Defaults to today.'),
+    date: dateSchema
+      .optional()
+      .describe(
+        'One day (YYYY-MM-DD, Japan time). Defaults to today. This tool is a single day, not a range.',
+      ),
     staffIds: staffIdsSchema,
     includeStamps: z
       .boolean()
@@ -171,12 +178,18 @@ export const getWorkingStatusesTool = defineTool({
   name: 'get_working_statuses',
   title: 'Get working statuses (勤務処理)',
   description:
-    'Admin only. Get working statuses (勤務処理) such as absence (欠勤) or business trip (出張) — labels are configured per company — ' +
-    `for staff you manage over a period (max ${MAX_STATUS_DAYS} days). Defaults to today and all staff you manage. ` +
-    'Only days that have a status are returned.',
+    'Admin only. Working-status labels (勤務処理) such as absence (欠勤) or a business trip (出張). The words are configured per company, so show the label text, do not translate it into a punch. ' +
+    `Defaults to today only (Japan time, YYYY-MM-DD), all staff you manage, max ${MAX_STATUS_DAYS} days. ` +
+    'Only days that have a label are returned. This is not punch history — use get_team_stamps for who is in.',
   inputSchema: z.object({
-    from: dateSchema.optional().describe('Start date (YYYY-MM-DD). Defaults to today.'),
-    to: dateSchema.optional().describe('End date, inclusive (YYYY-MM-DD). Defaults to `from`.'),
+    from: dateSchema
+      .optional()
+      .describe(
+        'Start date (YYYY-MM-DD, Japan time). Defaults to today, not the 1st of the month.',
+      ),
+    to: dateSchema
+      .optional()
+      .describe('End date, inclusive (YYYY-MM-DD, Japan time). Defaults to from (a single day).'),
     staffIds: staffIdsSchema,
   }),
   capability: 'working_statuses.read',
@@ -212,8 +225,15 @@ export const getProjectMembersTool = defineTool({
   name: 'get_project_members',
   title: 'Get project members',
   description:
-    'Admin only. List the members (プロジェクト従業員) and owners of a project, with names where available.',
-  inputSchema: z.object({ projectId: z.number().int().positive() }),
+    'Admin only. Members (プロジェクト従業員) and owners of one projectId, with names when list_staff succeeds. ' +
+    'projectId comes from list_projects. This does not change membership.',
+  inputSchema: z.object({
+    projectId: z
+      .number()
+      .int()
+      .positive()
+      .describe('Project ID from list_projects. Not a staff ID.'),
+  }),
   capability: 'project_members.read',
   audience: 'admin',
   kind: 'read',
