@@ -65,6 +65,7 @@ function report(
     date: partial.date,
     month: partial.month,
     ...(partial.gaps ? { gaps: partial.gaps } : {}),
+    ...(partial.readOnly ? { readOnly: true } : {}),
   });
 }
 
@@ -145,6 +146,68 @@ describe('buildCloseout', () => {
     expect(codes(day('2026-10-21', '16:01', '12:45').items)).not.toContain('short_break');
     // 09:00–12:00 (180) + 12:45–17:00 (255) = 435、休憩 45。8 時間未満なので 45 で足りる
     expect(codes(day('2026-10-22', '17:00', '12:45').items)).not.toContain('short_break');
+  });
+
+  it('未出勤の見出しは、休憩戻しや退勤を案内しない', () => {
+    const out = report({
+      scope: 'day',
+      date: '2026-10-27',
+      month: '2026-10',
+      stamps: [],
+    });
+    expect(codes(out.items)).toContain('not_clocked_in');
+    expect(out.headline).toMatch(/未出勤/);
+    expect(out.headline).not.toMatch(/休憩を戻す|退勤してください/);
+  });
+
+  it('読み取り専用では punch を案内しない', () => {
+    const out = report({
+      scope: 'day',
+      date: '2026-10-27',
+      month: '2026-10',
+      now: new Date('2026-10-27T06:00:00Z'),
+      stamps: [s('clock_in', '2026-10-27T09:00:00+09:00')],
+      readOnly: true,
+    });
+    expect(out.items.some((item) => item.tool === 'punch')).toBe(false);
+    expect(out.items.find((item) => item.code === 'still_working')?.action).toMatch(/読み取り専用/);
+  });
+
+  it('休憩打刻が無い過去日は不足と断定せず、実働は実績の分数を使う', () => {
+    const none = report({
+      scope: 'day',
+      date: '2026-10-20',
+      month: '2026-10',
+      stamps: [
+        s('clock_in', '2026-10-20T09:00:00+09:00'),
+        s('clock_out', '2026-10-20T20:34:00+09:00'),
+      ],
+      records: [rec('2026-10-20', 'workday', 634)],
+      manhours: [mh('2026-10-20', 634)],
+    });
+    expect(codes(none.items)).not.toContain('short_break');
+    const info = none.items.find((item) => item.code === 'no_break_punches');
+    expect(info?.severity).toBe('info');
+    expect(info?.detail).toMatch(/10:34/);
+    expect(info?.detail).not.toMatch(/11:34/);
+
+    const measured = report({
+      scope: 'day',
+      date: '2026-10-21',
+      month: '2026-10',
+      stamps: [
+        s('clock_in', '2026-10-21T09:00:00+09:00'),
+        s('break_start', '2026-10-21T12:00:00+09:00'),
+        s('break_end', '2026-10-21T12:03:00+09:00'),
+        s('clock_out', '2026-10-21T20:37:00+09:00'),
+      ],
+      records: [rec('2026-10-21', 'workday', 634)],
+      manhours: [mh('2026-10-21', 634)],
+    });
+    const item = measured.items.find((entry) => entry.code === 'short_break');
+    expect(item?.severity).toBe('error');
+    expect(item?.detail).toMatch(/10:34/);
+    expect(item?.detail).not.toMatch(/13:53|11:34/);
   });
 
   it('進行中の日は退勤漏れにせず、休憩中なら休憩戻を先に案内する', () => {

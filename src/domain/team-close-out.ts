@@ -11,7 +11,7 @@ import {
 import { BREAK_RULE, CLOSEOUT_DISCLAIMER, requiredBreakMinutes } from './close-out.ts';
 import { assessOvertimeRisk, type RiskLevel } from './overtime-risk.ts';
 import { UNKNOWN_BREAK_NOTE } from './summary.ts';
-import { readWorkingMinutes } from './worked-minutes.ts';
+import { readWorkingMinutes, recordedNetMinutes } from './worked-minutes.ts';
 
 export const TEAM_UNSUPPORTED = [
   'アラート API（GET /alerts）は本人分だけで、従業員を指定できません。遅刻・早退・36協定の正式な判定・深夜労働・工数未入力のアラートは、チーム分を見ていません。打刻漏れ、休憩、勤務間インターバル、残業の目安は、この結果で代わりに計算しています。',
@@ -292,15 +292,13 @@ function shortBreakItem(
   record: WorkingRecord | undefined,
   account: { workedMinutes: number; breakMinutes: number } | undefined,
 ): TeamDayIssue | undefined {
-  if (record?.breakMinutes !== undefined) {
-    const reading = readWorkingMinutes(record);
-    if (reading.basis === 'actual' || reading.basis === 'break_results') {
-      return violation(date, reading.netMinutes, record.breakMinutes, '勤務実績の休憩');
-    }
-    return undefined;
-  }
-  if (!account) return undefined;
-  return violation(date, account.workedMinutes, account.breakMinutes, '打刻の休憩');
+  // 休憩打刻が無い日は不足と断定しない。システムが休憩を引いていることがある。
+  if (record?.breakMinutes === undefined && (account?.breakMinutes ?? 0) === 0) return undefined;
+  const worked = recordedNetMinutes(record) ?? account?.workedMinutes;
+  if (worked === undefined) return undefined;
+  const breakMin = record?.breakMinutes ?? account?.breakMinutes ?? 0;
+  const source = record?.breakMinutes !== undefined ? '勤務実績の休憩' : '打刻の休憩';
+  return violation(date, worked, breakMin, source);
 }
 
 function violation(
@@ -498,7 +496,7 @@ function noteFor(from: LocalDate, to: LocalDate, today: LocalDate): string {
     from <= today && today <= to
       ? '今日は進行中です。退勤していないことだけでは残件にしません。今日だれが出ているかは get_team_stamps です。'
       : '';
-  return `${TEAM_ESTIMATE_NOTE}${todayNote}打刻の修正は API ではできません。過去の打刻は勤怠Plus の Web 画面から修正申請してください。`;
+  return `${TEAM_ESTIMATE_NOTE}${todayNote}休憩打刻が無い日は、システムが休憩を引いている可能性があるので不足とは断定しません。打刻の修正は API ではできません。過去の打刻は勤怠Plus の Web 画面から修正申請してください。`;
 }
 
 function formatHm(minutes: number): string {

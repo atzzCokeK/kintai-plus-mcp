@@ -1,7 +1,11 @@
 import { KintaiApiError } from '../api/errors.ts';
 import { LimitExceededError } from '../api/paging.ts';
 import { redactSecrets } from '../api/redact.ts';
-import { NotLoggedInError, TokenExpiredError } from '../credentials/token-manager.ts';
+import {
+  MissingCompanyIdError,
+  NotLoggedInError,
+  TokenExpiredError,
+} from '../credentials/token-manager.ts';
 
 export interface ToolResult {
   [key: string]: unknown;
@@ -55,14 +59,15 @@ export function errorResult(error: unknown): ToolResult {
   return {
     isError: true,
     content: [{ type: 'text', text: body }],
-    structuredContent: safeHint
-      ? { message: safeMessage, hint: safeHint }
-      : { message: safeMessage },
   };
 }
 
 function describeError(error: unknown): [string, string?] {
-  if (error instanceof NotLoggedInError || error instanceof TokenExpiredError) {
+  if (
+    error instanceof NotLoggedInError ||
+    error instanceof TokenExpiredError ||
+    error instanceof MissingCompanyIdError
+  ) {
     return [error.message];
   }
   if (error instanceof ToolInputError) return [error.message, 'Fix the input and try again.'];

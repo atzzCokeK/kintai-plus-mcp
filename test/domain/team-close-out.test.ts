@@ -90,7 +90,7 @@ describe('buildTeamCloseout', () => {
     expect(out.noActivity[0]?.note).toMatch(/休職/);
   });
 
-  it('勤務実績に退勤がある日は打刻が開いていても漏れにせず、無い日は退勤打刻なしにする', () => {
+  it('退勤打刻があれば漏れにせず、開始・終了だけでは退勤打刻なしにする', () => {
     const at = (iso: string) => new Date(iso);
     const corrected = input({
       records: [
@@ -101,6 +101,7 @@ describe('buildTeamCloseout', () => {
           actualWorkingMinutes: 480,
           startTime: at('2026-10-01T09:00:00+09:00'),
           endTime: at('2026-10-01T18:00:00+09:00'),
+          clockOutAt: at('2026-10-01T18:00:00+09:00'),
         },
       ],
       stamps: [stamp(1, 'clock_in', '2026-10-01T09:00:00+09:00')],
@@ -187,8 +188,95 @@ describe('buildTeamCloseout', () => {
         stamp(1, 'clock_out', '2026-10-01T18:00:00+09:00'),
       ],
     });
-    const item = none.members[0]?.days.find((d) => d.code === 'short_break');
-    expect(item?.title).toBe('休憩がありません');
+    expect(codes(none)).not.toContain('short_break');
+  });
+
+  it('実績の開始終了や別日の退勤では打刻漏れを消さず、実働は拘束時間にしない', () => {
+    const at = (iso: string) => new Date(iso);
+    const missed = input({
+      scope: 'month',
+      records: [
+        {
+          staffId: 1,
+          date: '2026-10-09',
+          dayCategory: 'workday',
+          actualWorkingMinutes: 634,
+          startTime: at('2026-10-09T09:00:00+09:00'),
+          endTime: at('2026-10-09T19:00:00+09:00'),
+          clockOutAt: at('2026-10-13T17:51:00+09:00'),
+        },
+        {
+          staffId: 1,
+          date: '2026-10-10',
+          dayCategory: 'workday',
+          actualWorkingMinutes: 480,
+          startTime: at('2026-10-10T09:12:00+09:00'),
+        },
+      ],
+      stamps: [
+        stamp(1, 'clock_in', '2026-10-09T09:00:00+09:00'),
+        stamp(1, 'clock_out', '2026-10-10T18:00:00+09:00'),
+      ],
+    });
+    const dayCodes = missed.members[0]?.days.map((d) => `${d.date} ${d.code}`);
+    expect(dayCodes).toContain('2026-10-09 missing_clock_out');
+    expect(dayCodes).toContain('2026-10-10 missing_clock_in');
+    expect(missed.members[0]?.days.find((d) => d.date === '2026-10-09')?.detail).toMatch(
+      /2026-10-13/,
+    );
+
+    const oneDay = input({
+      scope: 'day',
+      date: '2026-10-09',
+      records: [
+        {
+          staffId: 1,
+          date: '2026-10-09',
+          dayCategory: 'workday',
+          actualWorkingMinutes: 634,
+          endTime: at('2026-10-09T19:00:00+09:00'),
+        },
+      ],
+      stamps: [stamp(1, 'clock_in', '2026-10-09T09:00:00+09:00')],
+    });
+    expect(codes(oneDay)).toContain('missing_clock_out');
+
+    const noisy = input({
+      records: [
+        {
+          staffId: 1,
+          date: '2026-10-01',
+          dayCategory: 'workday',
+          actualWorkingMinutes: 634,
+        },
+      ],
+      stamps: [
+        stamp(1, 'clock_in', '2026-10-01T09:00:00+09:00'),
+        stamp(1, 'clock_out', '2026-10-01T20:34:00+09:00'),
+      ],
+    });
+    expect(codes(noisy)).not.toContain('short_break');
+
+    const short = input({
+      records: [
+        {
+          staffId: 1,
+          date: '2026-10-01',
+          dayCategory: 'workday',
+          actualWorkingMinutes: 634,
+        },
+      ],
+      stamps: [
+        stamp(1, 'clock_in', '2026-10-01T09:00:00+09:00'),
+        stamp(1, 'break_start', '2026-10-01T12:00:00+09:00'),
+        stamp(1, 'break_end', '2026-10-01T12:03:00+09:00'),
+        stamp(1, 'clock_out', '2026-10-01T20:37:00+09:00'),
+      ],
+    });
+    const item = short.members[0]?.days.find((d) => d.code === 'short_break');
+    expect(item?.severity).toBe('error');
+    expect(item?.detail).toMatch(/10:34/);
+    expect(item?.detail).not.toMatch(/11:34|13:53/);
   });
 
   it('打刻の休憩が 3 分なら不足、60 分なら足りる。休憩実績があればそちらを使う', () => {

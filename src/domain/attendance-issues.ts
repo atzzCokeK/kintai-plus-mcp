@@ -57,7 +57,9 @@ const isOut = (s: Stamp) => s.type === 'clock_out' || s.type === 'direct_out';
  * 範囲の前後 1 日も見る（初日の朝・末日の翌朝に終わる夜勤）。その外の問題は出さない。
  * stamps には範囲の前日と翌日の分も含めてよい。
  * 休暇・申請は API で見えないため、「労働日に打刻なし」は休暇の可能性を添えて warning にとどめる。
- * 勤務実績に開始・終了（または出勤・退勤の打刻時刻）がある日は、打刻修正などで打刻が欠けていても打刻漏れにしない。
+ * 打刻漏れは打刻と、勤務実績の出勤・退勤打刻時刻（clockInAt / clockOutAt）で判断する。
+ * 実績の開始・終了（startTime / endTime）だけでは、システムが埋めた時刻なので打刻漏れを消さない。
+ * 退勤打刻が勤務日の当日でも、翌日かつ出勤から 16 時間以内でもないときは、その日の退勤にしない。
  * 退勤より前にもう一度出勤している日は duplicate_clock_in。出勤が無く休憩や退勤だけの日は missing_clock_in。
  * 前日の終了と当日の開始が勤務実績にあれば、インターバルは打刻より実績を優先する（夜勤の終了時刻を短いインターバルにしない）。
  * 休憩が不明な経過時間は 12 時間超を info にし、1 時間引いても超えるときだけ warning にする。
@@ -74,8 +76,16 @@ export function findAttendanceIssues(input: {
     date: LocalDate;
     type: 'missing_clock_out' | 'missing_break_end';
   }) => {
-    // 終了時刻がある勤務実績は、打刻修正でその日が閉じているとみなす（休憩の内訳は API に無い）
-    if (recordHasClockOut(recordByDate.get(open.date))) return;
+    const record = recordByDate.get(open.date);
+    // 退勤打刻がその日を閉じているときだけ、打刻漏れを消す。開始・終了時刻では消さない。
+    if (clockOutClosesDay(record)) return;
+    if (open.type === 'missing_clock_out') {
+      const wrongDay = wrongDayClockOut(record);
+      if (wrongDay) {
+        add(open.date, 'missing_clock_out', wrongDay);
+        return;
+      }
+    }
     add(
       open.date,
       open.type,
@@ -118,8 +128,15 @@ export function findAttendanceIssues(input: {
         '出勤の打刻が重複しています（退勤より前にもう一度出勤しています）',
       );
     }
-    if (shape.missingClockIn && !recordHasClockIn(record)) {
+    if (shape.missingClockIn && !sameDayClockIn(record)) {
       add(date, 'missing_clock_in', shape.missingClockInMessage);
+    } else if (
+      record?.clockOutAt &&
+      !sameDayClockIn(record) &&
+      !stamps.some(isIn) &&
+      !shape.missingClockIn
+    ) {
+      add(date, 'missing_clock_in', '出勤の打刻がないまま退勤しています');
     }
 
     const status = computeDayStatus(stamps, endOfDay(date));
@@ -145,6 +162,11 @@ export function findAttendanceIssues(input: {
         type: 'missing_clock_out',
         ...(carried.lastInAt ? { lastInAt: carried.lastInAt } : {}),
       };
+    }
+    // 出勤打刻が無く、別日の退勤打刻だけがある。pending にならないのでここで出す。
+    const wrongDay = wrongDayClockOut(record);
+    if (wrongDay && status.state !== 'working' && status.state !== 'on_break') {
+      add(date, 'missing_clock_out', wrongDay);
     }
 
     const minutes = record?.actualWorkingMinutes ?? 0;
@@ -293,12 +315,29 @@ function shiftGapMinutes(
   return Math.round((start.getTime() - end.getTime()) / 60_000);
 }
 
-function recordHasClockIn(record: WorkingRecord | undefined): boolean {
-  return record?.startTime !== undefined || record?.clockInAt !== undefined;
+/** その勤務日の出勤打刻。開始時刻（startTime）はシステムが埋めるので使わない。 */
+function sameDayClockIn(record: WorkingRecord | undefined): boolean {
+  return record?.clockInAt !== undefined && toLocalDate(record.clockInAt) === record.date;
 }
 
-function recordHasClockOut(record: WorkingRecord | undefined): boolean {
-  return record?.endTime !== undefined || record?.clockOutAt !== undefined;
+/**
+ * 退勤打刻がその勤務日を閉じているか。
+ * 当日か、出勤打刻から 16 時間以内の翌日だけ。開始・終了時刻では閉じない。
+ */
+function clockOutClosesDay(record: WorkingRecord | undefined): boolean {
+  if (!record?.clockOutAt) return false;
+  const outDate = toLocalDate(record.clockOutAt);
+  if (outDate === record.date) return true;
+  if (outDate !== addDays(record.date, 1) || !sameDayClockIn(record) || !record.clockInAt) {
+    return false;
+  }
+  const elapsed = record.clockOutAt.getTime() - record.clockInAt.getTime();
+  return elapsed >= 0 && elapsed <= MAX_OVERNIGHT_SHIFT_MINUTES * 60_000;
+}
+
+function wrongDayClockOut(record: WorkingRecord | undefined): string | undefined {
+  if (!record?.clockOutAt || clockOutClosesDay(record)) return undefined;
+  return `退勤打刻が勤務日と別の日（${toLocalDate(record.clockOutAt)}）になっています`;
 }
 
 function addLongDay(

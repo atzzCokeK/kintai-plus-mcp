@@ -25,6 +25,17 @@ export interface MinuteReading {
   breakMinutes?: number;
 }
 
+/**
+ * API が返した実働（分）。経過からの見積もり（workingMinutesAreGross）は含めない。
+ * 休憩不足の判定は、打刻の拘束時間ではなくこの値を使う。
+ */
+export function recordedNetMinutes(record: WorkingRecord | undefined): number | undefined {
+  if (!record || record.workingMinutesAreGross === true) return undefined;
+  const minutes = record.actualWorkingMinutes;
+  if (minutes === undefined || minutes <= 0) return undefined;
+  return minutes;
+}
+
 /** 勤務実績 1 日を、残業計算に使う実働（分）に読む。実働が無い日は見積もりだと basis で分かる。 */
 export function readWorkingMinutes(record: WorkingRecord): MinuteReading {
   const raw = record.actualWorkingMinutes;

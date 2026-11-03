@@ -31,12 +31,27 @@ export async function staffIndex(ctx: ToolContext): Promise<Map<number, MinimalS
   }
 }
 
-function presentTeamState(status: DayStatus): { state: string; stateLabel: string } {
+function presentTeamState(
+  status: DayStatus,
+  stamps: readonly { type: string }[],
+): { state: string; stateLabel: string } {
   if (status.unclosed === 'clock_out') {
     return { state: 'missing_clock_out', stateLabel: '退勤打刻なし' };
   }
   if (status.unclosed === 'break_end') {
     return { state: 'missing_break_end', stateLabel: '休憩戻なし' };
+  }
+  if (
+    status.state === 'not_started' &&
+    stamps.some(
+      (stamp) =>
+        stamp.type === 'clock_out' ||
+        stamp.type === 'direct_out' ||
+        stamp.type === 'break_start' ||
+        stamp.type === 'break_end',
+    )
+  ) {
+    return { state: 'missing_clock_in', stateLabel: '出勤打刻なし' };
   }
   return { state: status.state, stateLabel: DAY_STATE_LABEL[status.state] };
 }
@@ -157,7 +172,7 @@ export const getTeamStampsTool = defineTool({
     const people = ids.map((staffId) => {
       const own = stamps.filter((s) => s.staffId === staffId);
       const status = computeDayStatus(own, asOf, { countOpen: !past });
-      const presented = presentTeamState(status);
+      const presented = presentTeamState(status, own);
       summary[presented.state] = (summary[presented.state] ?? 0) + 1;
       const name = names.get(staffId)?.name;
       return {

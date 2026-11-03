@@ -1,6 +1,7 @@
 import { isValidCompanyId, parseApiHost } from '../api/endpoint.ts';
 import { CREDENTIALS_FILE_ENV, defaultCredentialsPath, FileCredentialStore } from './file-store.ts';
 import { KeychainCredentialStore } from './keychain-store.ts';
+import { MissingCompanyIdError } from './token-manager.ts';
 import type { CredentialStore, Credentials } from './types.ts';
 
 type Env = Record<string, string | undefined>;
@@ -71,6 +72,7 @@ export async function importFromEnv(
 
   const token = env[TOKEN_ENV]?.trim();
   const companyId = env[COMPANY_ID_ENV]?.trim();
+  if (token && !companyId) throw new MissingCompanyIdError();
   if (!token || !companyId) return undefined;
 
   const hostInput = env[HOST_ENV]?.trim() || 'atnd.ak4.jp';

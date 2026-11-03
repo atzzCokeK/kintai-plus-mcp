@@ -8,7 +8,7 @@ import { defaultCredentialsPath } from './credentials/file-store.ts';
 import type { KeychainCredentialStore } from './credentials/keychain-store.ts';
 import { acquireFileLock } from './credentials/lock.ts';
 import { EnvFallbackStore, importFromEnv, selectCredentialStore } from './credentials/select.ts';
-import { TokenManager } from './credentials/token-manager.ts';
+import { MissingCompanyIdError, TokenManager } from './credentials/token-manager.ts';
 import {
   type CredentialStore,
   type Credentials,
@@ -85,8 +85,13 @@ export async function createRuntime(options: RuntimeOptions = {}): Promise<Runti
     }
   } catch (error) {
     // 壊れた保存データがあっても login で上書きできるよう、ここでは止めない
-    if (!(error instanceof CredentialsFormatError)) throw error;
-    logger.warn(error.message);
+    if (error instanceof CredentialsFormatError) {
+      logger.warn(error.message);
+    } else if (error instanceof MissingCompanyIdError) {
+      tokenStore = companyIdMissingStore(store);
+    } else {
+      throw error;
+    }
   }
 
   const tokens = new TokenManager({
@@ -121,6 +126,25 @@ export async function createRuntime(options: RuntimeOptions = {}): Promise<Runti
       const credentials = await tokens.getCredentials();
       return createClient(toConnection(credentials), () => tokens.getToken());
     },
+  };
+}
+
+/** トークンだけで企業 ID が無いとき、以降の読み出しは理由が分かるエラーにする */
+function companyIdMissingStore(inner: CredentialStore): CredentialStore {
+  return {
+    get kind() {
+      return inner.kind;
+    },
+    get location() {
+      return inner.location;
+    },
+    load: async () => {
+      throw new MissingCompanyIdError();
+    },
+    save: async () => {
+      throw new MissingCompanyIdError();
+    },
+    clear: () => inner.clear(),
   };
 }
 

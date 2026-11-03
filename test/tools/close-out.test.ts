@@ -152,9 +152,22 @@ describe('close_out', () => {
         new Date('2026-10-27T01:00:00Z'),
       ),
     )) as { items: Array<{ code: string }>; ok: boolean };
-    expect(out.items.map((i) => i.code)).toContain('short_break');
+    expect(out.items.map((i) => i.code)).toContain('no_break_punches');
     expect(out.items.map((i) => i.code)).toContain('incomplete_data');
     expect(out.ok).toBe(false);
+  });
+
+  it('入力エラーは isError で、成功形の structuredContent を付けない', async () => {
+    const server = createMcpServer(fakeContext(fakeBackend()), [closeOutTool]);
+    const client = await connectTestClient(server);
+    try {
+      const res = await client.callTool('close_out', { scope: 'day', month: '2026-10' });
+      expect(res.isError).toBe(true);
+      expect(res.structuredContent).toBeUndefined();
+      expect(res.text).toMatch(/month/);
+    } finally {
+      await client.close();
+    }
   });
 
   it('MCP の outputSchema と structuredContent で同じ結果を返す', async () => {

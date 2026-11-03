@@ -6,6 +6,17 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 export const LOGIN_HINT = 'Run `npx kintai-plus-mcp login` to register your Kintai Plus API token.';
 
+/** トークンはあるがログイン企業 ID が無い */
+export class MissingCompanyIdError extends Error {
+  override readonly name = 'MissingCompanyIdError';
+  constructor() {
+    super(
+      'KINTAI_PLUS_TOKEN is set, but KINTAI_PLUS_COMPANY_ID is missing. ' +
+        'Set KINTAI_PLUS_COMPANY_ID to the ログイン企業ID, or run `npx kintai-plus-mcp login`.',
+    );
+  }
+}
+
 /** 認証情報が登録されていない */
 export class NotLoggedInError extends Error {
   override readonly name = 'NotLoggedInError';
